@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import Link from 'next/link';
 import { motion, useInView } from 'framer-motion';
-import { now } from '../../../content/now';
+import { now } from '@content/now';
 
 const cards = [
   { icon: '\ud83d\udccd', label: 'Location', value: now.location },

@@ -1,4 +1,4 @@
-import { trips } from '../../../content/travel/_meta';
+import { trips } from '@content/travel/_meta';
 import TripTimeline from '@/components/travel/TripTimeline';
 import PageTransition from '@/components/layout/PageTransition';
 import GlobeSection from '@/components/travel/GlobeSection';

@@ -38,6 +38,18 @@ export default function PhotoGallery({ photos }: { photos: Photo[] }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [activeIndex, close, prev, next]);
 
+  // Lock body scroll when lightbox is open
+  useEffect(() => {
+    if (activeIndex !== null) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [activeIndex]);
+
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 my-8">
@@ -55,6 +67,8 @@ export default function PhotoGallery({ photos }: { photos: Photo[] }) {
       <AnimatePresence>
         {activeIndex !== null && (
           <motion.div
+            role="dialog"
+            aria-modal="true"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

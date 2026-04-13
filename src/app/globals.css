@@ -2,9 +2,7 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  /* Font stacks — replace with self-hosted @font-face or Google Fonts link in production */
-  --font-heading: "Space Grotesk", "Inter", system-ui, sans-serif;
-  --font-body: "DM Sans", "Inter", system-ui, sans-serif;
+  /* Font CSS variables are set by next/font in layout.tsx */
 
   --color-primary: #ff5a5f;
   --color-secondary: #3232ff;
@@ -17,6 +15,9 @@
   --color-muted-light: rgba(20, 20, 30, 0.6);
   --color-border: rgba(245, 245, 255, 0.1);
   --color-border-light: rgba(20, 20, 30, 0.1);
+  --color-card: rgba(255, 255, 255, 0.05);
+  --color-card-light: rgba(0, 0, 0, 0.05);
+  --color-on-primary: #ffffff;
 }
 
 @theme inline {
@@ -27,6 +28,8 @@
   --color-foreground: var(--color-text);
   --color-muted: var(--color-muted);
   --color-border: var(--color-border);
+  --color-card: var(--color-card);
+  --color-on-primary: var(--color-on-primary);
   --font-heading: var(--font-heading);
   --font-body: var(--font-body);
 }
@@ -34,7 +37,7 @@
 body {
   background: var(--color-surface);
   color: var(--color-text);
-  font-family: var(--font-body);
+  font-family: var(--font-body), system-ui, sans-serif;
 }
 
 /* Dark mode is default. Light mode overrides: */
@@ -43,4 +46,5 @@ body {
   --color-text: var(--color-text-light);
   --color-muted: var(--color-muted-light);
   --color-border: var(--color-border-light);
+  --color-card: var(--color-card-light);
 }

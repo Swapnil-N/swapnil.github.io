@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { trips } from "../../content/travel/_meta";
+import { trips } from "@content/travel/_meta";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://swapnil.dev"; // TODO: Update with actual domain

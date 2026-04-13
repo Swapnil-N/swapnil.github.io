@@ -2,43 +2,32 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { experiences, education, skills } from '@content/resume';
 
 const tabs = ['Experience', 'Education', 'Skills'] as const;
 type Tab = (typeof tabs)[number];
 
-const experienceData = [
-  {
-    title: 'Forward Deployed Engineer',
-    org: 'Palantir Technologies',
-    period: '2022 — Present',
-    description:
-      'Building data infrastructure and analytics platforms for Fortune 500 clients. Leading cross-functional teams to deliver mission-critical solutions.',
-  },
-  {
-    title: 'Software Engineer',
-    org: 'Tech Startup',
-    period: '2020 — 2022',
-    description:
-      'Full-stack development with React, Node.js, and AWS. Built scalable microservices serving millions of requests daily.',
-  },
-];
+const experienceData = experiences
+  .filter((e) => e.role !== 'B.S. Computer Science')
+  .map((e) => ({ title: e.role, org: e.company, period: e.period, description: e.description }));
 
-const educationData = [
-  {
-    title: 'B.S. Computer Science',
-    org: 'University of Michigan',
-    period: '2016 — 2020',
-    description:
-      'Focus on distributed systems and machine learning. Teaching assistant for intro CS courses.',
-  },
-];
+const educationData = education.map((e) => ({
+  title: e.role,
+  org: e.company,
+  period: e.period,
+  description: e.description,
+}));
 
-const skillsData = [
-  { category: 'Languages', items: ['TypeScript', 'Python', 'SQL', 'Java'] },
-  { category: 'Frameworks', items: ['React', 'Next.js', 'Node.js', 'Three.js'] },
-  { category: 'Cloud', items: ['AWS'] },
-  { category: 'Tools', items: ['Docker', 'Git', 'Terraform'] },
-];
+const skillsByCategory = skills.reduce<Record<string, string[]>>((acc, s) => {
+  if (!acc[s.category]) acc[s.category] = [];
+  acc[s.category].push(s.name);
+  return acc;
+}, {});
+
+const skillsData = Object.entries(skillsByCategory).map(([category, items]) => ({
+  category,
+  items,
+}));
 
 function EntryList({
   entries,
@@ -127,17 +116,15 @@ export default function InlineResume() {
       </AnimatePresence>
 
       {/* Download Button */}
-      <div className="mt-10 flex items-center gap-4 flex-wrap">
+      <div className="mt-8 flex items-center gap-4">
         <a
           href="/resume.pdf"
           download
-          className="inline-block bg-[var(--color-primary)] text-white rounded-xl px-6 py-3 font-medium hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] text-white px-6 py-3 font-medium hover:opacity-90 transition-opacity"
         >
-          Download Resume
+          Download Resume (PDF)
         </a>
-        <span className="text-[var(--color-muted)] text-sm">
-          TODO: Add your resume.pdf to public/
-        </span>
+        <span className="text-sm text-[var(--color-muted)]">Add your resume.pdf to public/</span>
       </div>
     </div>
   );

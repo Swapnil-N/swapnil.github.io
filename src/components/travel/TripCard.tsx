@@ -7,7 +7,6 @@ interface TripCardProps {
   title: string;
   startDate: string;
   excerpt: string;
-  coverImage?: string;
 }
 
 export default function TripCard({
@@ -15,24 +14,15 @@ export default function TripCard({
   title,
   startDate,
   excerpt,
-  coverImage,
 }: TripCardProps) {
   return (
     <Link href={`/travel/${slug}`}>
       <div className="rounded-2xl overflow-hidden bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)]/50 transition-all duration-300">
-        {coverImage ? (
-          <div className="h-48 bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-secondary)]/20 flex items-center justify-center">
-            <span className="text-[var(--color-muted)] text-sm">
-              {title}
-            </span>
-          </div>
-        ) : (
-          <div className="h-48 bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-secondary)]/20 flex items-center justify-center">
-            <span className="text-[var(--color-muted)] text-sm">
-              {title}
-            </span>
-          </div>
-        )}
+        <div className="h-48 bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-secondary)]/20 flex items-center justify-center">
+          <span className="text-[var(--color-muted)] text-sm">
+            {title}
+          </span>
+        </div>
         <div className="p-6">
           <h3 className="font-heading text-xl font-bold mb-1 text-[var(--color-text)]">
             {title}

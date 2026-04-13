@@ -2,21 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useCallback, useRef } from 'react';
-
-const skills = [
-  { name: 'TypeScript', category: 'Languages', featured: true },
-  { name: 'Python', category: 'Languages', featured: true },
-  { name: 'SQL', category: 'Languages', featured: false },
-  { name: 'Java', category: 'Languages', featured: false },
-  { name: 'React', category: 'Frameworks', featured: true },
-  { name: 'Next.js', category: 'Frameworks', featured: true },
-  { name: 'Node.js', category: 'Frameworks', featured: false },
-  { name: 'Three.js', category: 'Frameworks', featured: false },
-  { name: 'AWS', category: 'Cloud', featured: true },
-  { name: 'Docker', category: 'Tools', featured: false },
-  { name: 'Git', category: 'Tools', featured: false },
-  { name: 'Terraform', category: 'Tools', featured: false },
-];
+import { skills, type Skill } from '@content/resume';
 
 const categoryColors: Record<string, string> = {
   Languages: 'bg-[var(--color-primary)]/20 text-[var(--color-primary)]',
@@ -29,7 +15,7 @@ function SkillCard({
   skill,
   index,
 }: {
-  skill: (typeof skills)[number];
+  skill: Skill;
   index: number;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);

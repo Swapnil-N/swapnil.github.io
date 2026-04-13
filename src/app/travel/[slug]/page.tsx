@@ -75,7 +75,7 @@ export default async function TripPage({
         ))}
       </div>
       <article
-        className="prose prose-invert prose-lg max-w-none
+        className="prose dark:prose-invert prose-lg max-w-none
         prose-headings:font-heading prose-headings:text-[var(--color-text)]
         prose-p:text-[var(--color-muted)]
         prose-a:text-[var(--color-primary)]"

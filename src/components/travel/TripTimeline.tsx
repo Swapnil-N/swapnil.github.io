@@ -10,7 +10,6 @@ interface Trip {
   lng: number;
   startDate: string;
   excerpt: string;
-  coverImage: string;
 }
 
 export default function TripTimeline({ trips }: { trips: Trip[] }) {
@@ -46,7 +45,6 @@ export default function TripTimeline({ trips }: { trips: Trip[] }) {
                 title={trip.title}
                 startDate={trip.startDate}
                 excerpt={trip.excerpt}
-                coverImage={trip.coverImage}
               />
             </motion.div>
           );
