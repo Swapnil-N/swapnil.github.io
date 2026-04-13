@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --font-space-grotesk: "Space Grotesk", system-ui, sans-serif;
-  --font-dm-sans: "DM Sans", system-ui, sans-serif;
+  /* Font stacks — replace with self-hosted @font-face or Google Fonts link in production */
+  --font-heading: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-body: "DM Sans", "Inter", system-ui, sans-serif;
 
   --color-primary: #ff5a5f;
   --color-secondary: #3232ff;
@@ -25,14 +26,14 @@
   --color-foreground: var(--color-text);
   --color-muted: var(--color-muted);
   --color-border: var(--color-border);
-  --font-heading: var(--font-space-grotesk);
-  --font-body: var(--font-dm-sans);
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
 }
 
 body {
   background: var(--color-surface);
   color: var(--color-text);
-  font-family: var(--font-body), system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 /* Dark mode is default. Light mode overrides: */

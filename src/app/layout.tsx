@@ -15,7 +15,8 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: "Swapnil Nandeshwar",
-  description: "Personal website — Forward Deployed Engineer, traveler, builder.",
+  description:
+    "Personal website — Forward Deployed Engineer, traveler, builder.",
 };
 
 export default function RootLayout({
@@ -30,7 +31,11 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${dmSans.variable}`}
     >
       <body className="min-h-screen bg-surface text-foreground font-body antialiased">
-        <ThemeProvider attribute="data-theme" defaultTheme="dark" enableSystem={false}>
+        <ThemeProvider
+          attribute="data-theme"
+          defaultTheme="dark"
+          enableSystem={false}
+        >
           {children}
         </ThemeProvider>
       </body>
