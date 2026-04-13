@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  --font-space-grotesk: "Space Grotesk", system-ui, sans-serif;
+  --font-dm-sans: "DM Sans", system-ui, sans-serif;
+
+  --color-primary: #ff5a5f;
+  --color-secondary: #3232ff;
+  --color-accent: #ffc832;
+  --color-surface: #0f0f19;
+  --color-surface-light: #fafaff;
+  --color-text: #f5f5ff;
+  --color-text-light: #14141e;
+  --color-muted: rgba(245, 245, 255, 0.6);
+  --color-muted-light: rgba(20, 20, 30, 0.6);
+  --color-border: rgba(245, 245, 255, 0.1);
+  --color-border-light: rgba(20, 20, 30, 0.1);
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-surface: var(--color-surface);
+  --color-foreground: var(--color-text);
+  --color-muted: var(--color-muted);
+  --color-border: var(--color-border);
+  --font-heading: var(--font-space-grotesk);
+  --font-body: var(--font-dm-sans);
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+/* Dark mode is default. Light mode overrides: */
+[data-theme="light"] {
+  --color-surface: var(--color-surface-light);
+  --color-text: var(--color-text-light);
+  --color-muted: var(--color-muted-light);
+  --color-border: var(--color-border-light);
+}
