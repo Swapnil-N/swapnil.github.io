@@ -1,6 +1,6 @@
 export default function Footer() {
   return (
-    <footer className="border-t border-[var(--color-border)] py-8 px-4">
+    <footer className="border-t border-border py-8 px-4">
       <div className="mx-auto max-w-6xl flex flex-col items-center gap-4">
         {/* Social links */}
         <div className="flex items-center gap-5">
@@ -9,7 +9,7 @@ export default function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
-            className="text-[var(--color-muted)] hover:text-[var(--color-text)] transition-colors"
+            className="text-muted hover:text-foreground transition-colors"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -26,7 +26,7 @@ export default function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="LinkedIn"
-            className="text-[var(--color-muted)] hover:text-[var(--color-text)] transition-colors"
+            className="text-muted hover:text-foreground transition-colors"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -41,7 +41,7 @@ export default function Footer() {
         </div>
 
         {/* Copyright */}
-        <p className="text-sm text-[var(--color-muted)]">
+        <p className="text-sm text-muted">
           &copy; {new Date().getFullYear()} Swapnil Nandeshwar
         </p>
       </div>

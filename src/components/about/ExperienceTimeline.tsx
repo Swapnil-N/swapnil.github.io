@@ -7,7 +7,7 @@ export default function ExperienceTimeline() {
   return (
     <div className="relative">
       {/* Vertical timeline line */}
-      <div className="absolute left-4 md:left-1/2 w-0.5 h-full bg-[var(--color-primary)]/20" />
+      <div className="absolute left-4 md:left-1/2 w-0.5 h-full bg-primary/20" />
 
       <div className="flex flex-col gap-12">
         {experiences.map((exp, i) => {
@@ -22,7 +22,7 @@ export default function ExperienceTimeline() {
             >
               {/* Dot on the timeline */}
               <div
-                className="absolute left-4 md:left-1/2 w-3 h-3 rounded-full bg-[var(--color-primary)] -translate-x-1/2 top-6 md:top-1/2 md:-translate-y-1/2 z-10"
+                className="absolute left-4 md:left-1/2 w-3 h-3 rounded-full bg-primary -translate-x-1/2 top-6 md:top-1/2 md:-translate-y-1/2 z-10"
               />
 
               {/* Spacer for mobile left offset */}
@@ -34,12 +34,12 @@ export default function ExperienceTimeline() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: '-50px' }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
-                className={`bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 w-full md:w-[calc(50%-2rem)] ${
+                className={`bg-surface border border-border rounded-2xl p-6 w-full md:w-[calc(50%-2rem)] ${
                   isLeft ? 'md:mr-auto md:pr-6' : 'md:ml-auto md:pl-6'
                 }`}
               >
                 <h3 className="font-heading text-xl font-bold">{exp.company}</h3>
-                <p className="text-[var(--color-muted)] text-sm mt-1">
+                <p className="text-muted text-sm mt-1">
                   {exp.role} &middot; {exp.period}
                 </p>
                 <p className="mt-3 text-sm leading-relaxed">{exp.description}</p>

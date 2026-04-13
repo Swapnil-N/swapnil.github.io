@@ -43,7 +43,7 @@ export default function AnimatedText() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.6 }}
-        className="mt-4 text-lg text-[var(--color-muted)]"
+        className="mt-4 text-lg text-muted"
       >
         {tagline}
       </motion.p>
@@ -55,7 +55,7 @@ export default function AnimatedText() {
         transition={{ delay: 1.2, duration: 0.6 }}
         className="absolute bottom-12 flex flex-col items-center gap-2"
       >
-        <span className="text-sm text-[var(--color-muted)]">
+        <span className="text-sm text-muted">
           Scroll to explore
         </span>
         <motion.svg
@@ -67,7 +67,7 @@ export default function AnimatedText() {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-[var(--color-muted)]"
+          className="text-muted"
           animate={{ y: [0, 6, 0] }}
           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
         >

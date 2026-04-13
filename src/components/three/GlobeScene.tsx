@@ -45,7 +45,7 @@ function GlobePin({ lat, lng, title, radius }: { lat: number; lng: number; title
       </mesh>
       {hovered && (
         <Html distanceFactor={6} style={{ pointerEvents: 'none' }}>
-          <div className="rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text)] whitespace-nowrap shadow-lg">
+          <div className="rounded-lg bg-surface border border-border px-3 py-1.5 text-sm text-foreground whitespace-nowrap shadow-lg">
             {title}
           </div>
         </Html>

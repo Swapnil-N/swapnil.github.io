@@ -19,12 +19,12 @@ export default function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-[var(--color-surface)]/80 backdrop-blur-md border-b border-[var(--color-border)]">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-md border-b border-border">
       <div className="mx-auto max-w-6xl flex items-center justify-between px-4 h-16">
         {/* Logo */}
         <Link
           href="/"
-          className="text-xl font-bold tracking-tight text-[var(--color-primary)] font-heading"
+          className="text-xl font-bold tracking-tight text-primary font-heading"
         >
           SN
         </Link>
@@ -39,15 +39,15 @@ export default function Nav() {
                 href={link.href}
                 className={`relative py-1 text-sm transition-colors ${
                   isActive
-                    ? 'text-[var(--color-primary)]'
-                    : 'text-[var(--color-text)] hover:text-[var(--color-primary)]'
+                    ? 'text-primary'
+                    : 'text-foreground hover:text-primary'
                 }`}
               >
                 {link.label}
                 {isActive && (
                   <motion.div
                     layoutId="nav-underline"
-                    className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-[var(--color-primary)] rounded-full"
+                    className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-primary rounded-full"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
                 )}
@@ -63,10 +63,10 @@ export default function Nav() {
           <button
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             onClick={() => setMobileOpen((prev) => !prev)}
-            className="relative flex flex-col items-center justify-center w-10 h-10 rounded-full hover:bg-[var(--color-border)] transition-colors"
+            className="relative flex flex-col items-center justify-center w-10 h-10 rounded-full hover:bg-border transition-colors"
           >
             <motion.span
-              className="block h-0.5 w-5 bg-[var(--color-text)] rounded-full absolute"
+              className="block h-0.5 w-5 bg-foreground rounded-full absolute"
               animate={
                 mobileOpen
                   ? { rotate: 45, y: 0 }
@@ -75,7 +75,7 @@ export default function Nav() {
               transition={{ duration: 0.25 }}
             />
             <motion.span
-              className="block h-0.5 w-5 bg-[var(--color-text)] rounded-full absolute"
+              className="block h-0.5 w-5 bg-foreground rounded-full absolute"
               animate={
                 mobileOpen
                   ? { rotate: -45, y: 0 }
@@ -95,7 +95,7 @@ export default function Nav() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="md:hidden overflow-hidden border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md"
+            className="md:hidden overflow-hidden border-b border-border bg-surface/95 backdrop-blur-md"
           >
             <div className="flex flex-col px-4 py-4 gap-1">
               {links.map((link) => {
@@ -107,8 +107,8 @@ export default function Nav() {
                     onClick={() => setMobileOpen(false)}
                     className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                       isActive
-                        ? 'text-[var(--color-primary)] bg-[var(--color-primary)]/10'
-                        : 'text-[var(--color-text)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)]'
+                        ? 'text-primary bg-primary/10'
+                        : 'text-foreground hover:text-primary hover:bg-border'
                     }`}
                   >
                     {link.label}

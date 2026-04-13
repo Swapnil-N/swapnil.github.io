@@ -37,9 +37,9 @@ function EntryList({
   return (
     <div className="flex flex-col gap-6">
       {entries.map((entry, i) => (
-        <div key={i} className="border-b border-[var(--color-border)] pb-6 last:border-b-0">
+        <div key={i} className="border-b border-border pb-6 last:border-b-0">
           <h4 className="font-heading font-bold text-lg">{entry.title}</h4>
-          <p className="text-[var(--color-muted)] text-sm">
+          <p className="text-muted text-sm">
             {entry.org} &middot; {entry.period}
           </p>
           <p className="mt-2 text-sm leading-relaxed">{entry.description}</p>
@@ -59,7 +59,7 @@ function SkillsList() {
             {group.items.map((item) => (
               <span
                 key={item}
-                className="text-sm px-3 py-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]"
+                className="text-sm px-3 py-1 rounded-full border border-border bg-surface"
               >
                 {item}
               </span>
@@ -77,22 +77,22 @@ export default function InlineResume() {
   return (
     <div>
       {/* Tabs */}
-      <div className="flex gap-6 border-b border-[var(--color-border)] mb-8 relative">
+      <div className="flex gap-6 border-b border-border mb-8 relative">
         {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`relative pb-3 text-sm font-medium transition-colors ${
               activeTab === tab
-                ? 'text-[var(--color-foreground)]'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
+                ? 'text-foreground'
+                : 'text-muted hover:text-foreground'
             }`}
           >
             {tab}
             {activeTab === tab && (
               <motion.div
                 layoutId="resume-tab"
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
             )}
@@ -120,11 +120,11 @@ export default function InlineResume() {
         <a
           href="/resume.pdf"
           download
-          className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] text-white px-6 py-3 font-medium hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary text-white px-6 py-3 font-medium hover:opacity-90 transition-opacity"
         >
           Download Resume (PDF)
         </a>
-        <span className="text-sm text-[var(--color-muted)]">Add your resume.pdf to public/</span>
+        <span className="text-sm text-muted">Add your resume.pdf to public/</span>
       </div>
     </div>
   );

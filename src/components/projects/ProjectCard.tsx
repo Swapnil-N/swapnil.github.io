@@ -56,24 +56,24 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
           : 'perspective(1000px) rotateX(0deg) rotateY(0deg)',
         transition: isHovering ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out',
       }}
-      className={`rounded-2xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] ${
+      className={`rounded-2xl overflow-hidden border border-border bg-surface ${
         project.featured ? 'md:col-span-2' : ''
       }`}
     >
       {/* Gradient placeholder image area */}
-      <div className="h-40 bg-gradient-to-br from-[var(--color-primary)]/20 via-[var(--color-secondary)]/20 to-[var(--color-accent)]/20 flex items-center justify-center">
-        <span className="font-heading text-lg font-bold text-[var(--color-text)] opacity-60">
+      <div className="h-40 bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20 flex items-center justify-center">
+        <span className="font-heading text-lg font-bold text-foreground opacity-60">
           {project.title}
         </span>
       </div>
 
       {/* Content */}
       <div className="p-6">
-        <h3 className="font-heading text-xl font-bold mb-2 text-[var(--color-text)]">
+        <h3 className="font-heading text-xl font-bold mb-2 text-foreground">
           {project.title}
         </h3>
 
-        <p className="text-[var(--color-muted)] text-sm leading-relaxed mb-4 line-clamp-2">
+        <p className="text-muted text-sm leading-relaxed mb-4 line-clamp-2">
           {project.description}
         </p>
 
@@ -82,7 +82,7 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
           {project.tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-xs px-2.5 py-1"
+              className="rounded-full bg-primary/10 text-primary text-xs px-2.5 py-1"
             >
               {tag}
             </span>
@@ -91,13 +91,13 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
 
         {/* Links */}
         {(project.github || project.liveUrl) && (
-          <div className="flex items-center gap-4 pt-2 border-t border-[var(--color-border)]">
+          <div className="flex items-center gap-4 pt-2 border-t border-border">
             {project.github && (
               <a
                 href={project.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-primary transition-colors"
               >
                 {/* GitHub icon */}
                 <svg
@@ -118,7 +118,7 @@ export default function ProjectCard({ project, index }: ProjectCardProps) {
                 href={project.liveUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-primary transition-colors"
               >
                 {/* External link icon */}
                 <svg

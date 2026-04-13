@@ -53,14 +53,14 @@ export default async function TripPage({
     <div className="max-w-3xl mx-auto px-6 py-12">
       <Link
         href="/travel"
-        className="text-[var(--color-primary)] hover:underline mb-6 inline-block"
+        className="text-primary hover:underline mb-6 inline-block"
       >
         &larr; Back to travels
       </Link>
       <h1 className="font-heading text-4xl md:text-5xl font-bold mb-4">
         {trip.frontmatter.title as string}
       </h1>
-      <p className="text-[var(--color-muted)] mb-2">
+      <p className="text-muted mb-2">
         {trip.frontmatter.startDate as string} &mdash;{' '}
         {trip.frontmatter.endDate as string}
       </p>
@@ -68,7 +68,7 @@ export default async function TripPage({
         {((trip.frontmatter.tags as string[]) || []).map((tag: string) => (
           <span
             key={tag}
-            className="rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-xs px-3 py-1"
+            className="rounded-full bg-primary/10 text-primary text-xs px-3 py-1"
           >
             {tag}
           </span>
@@ -76,9 +76,9 @@ export default async function TripPage({
       </div>
       <article
         className="prose dark:prose-invert prose-lg max-w-none
-        prose-headings:font-heading prose-headings:text-[var(--color-text)]
-        prose-p:text-[var(--color-muted)]
-        prose-a:text-[var(--color-primary)]"
+        prose-headings:font-heading prose-headings:text-foreground
+        prose-p:text-muted
+        prose-a:text-primary"
       >
         {mdxContent}
       </article>

@@ -8,7 +8,7 @@ export default function AboutPage() {
     <PageTransition>
       <div className="min-h-screen max-w-5xl mx-auto px-6 py-12">
         <h1 className="font-heading text-4xl md:text-6xl font-bold mb-4">About Me</h1>
-        <p className="text-[var(--color-muted)] text-lg mb-16 max-w-2xl">
+        <p className="text-muted text-lg mb-16 max-w-2xl">
           Forward Deployed Engineer at Palantir. I build things, travel the world, and occasionally
           write about it.
         </p>

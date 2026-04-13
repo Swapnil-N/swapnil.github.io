@@ -40,7 +40,7 @@ export default function ContactPage() {
   }
 
   const inputClassName =
-    'w-full rounded-xl bg-transparent border border-[var(--color-border)] px-4 py-3 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] transition-colors';
+    'w-full rounded-xl bg-transparent border border-border px-4 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors';
 
   return (
     <PageTransition>
@@ -55,10 +55,10 @@ export default function ContactPage() {
               transition={{ duration: 0.4, ease: 'easeOut' as const }}
               className="text-center py-20"
             >
-              <h2 className="text-2xl font-heading font-bold mb-4 text-[var(--color-text)]">
+              <h2 className="text-2xl font-heading font-bold mb-4 text-foreground">
                 Message sent!
               </h2>
-              <p className="text-[var(--color-muted)]">
+              <p className="text-muted">
                 I&apos;ll get back to you soon.
               </p>
             </motion.div>
@@ -69,10 +69,10 @@ export default function ContactPage() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3, ease: 'easeOut' as const }}
             >
-              <h1 className="text-4xl font-heading font-bold mb-3 text-[var(--color-text)]">
+              <h1 className="text-4xl font-heading font-bold mb-3 text-foreground">
                 Get in Touch
               </h1>
-              <p className="text-[var(--color-muted)] mb-10">
+              <p className="text-muted mb-10">
                 Have a question or want to work together? Drop me a message.
               </p>
 
@@ -146,7 +146,7 @@ export default function ContactPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-xl bg-[var(--color-primary)] text-white font-medium py-3 px-6 hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="w-full rounded-xl bg-primary text-white font-medium py-3 px-6 hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {loading ? (
                     <span className="inline-flex items-center gap-2">

@@ -43,16 +43,16 @@ export default function CurrentlySection() {
             initial="hidden"
             animate={inView ? 'visible' : 'hidden'}
             variants={cardVariants}
-            className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6"
+            className="bg-surface border border-border rounded-2xl p-6"
           >
             <div className="text-3xl mb-2">{card.icon}</div>
-            <p className="text-sm text-[var(--color-muted)] mb-1">
+            <p className="text-sm text-muted mb-1">
               {card.label}
             </p>
             {'href' in card && card.href ? (
               <Link
                 href={card.href}
-                className="text-lg font-semibold text-[var(--color-primary)] hover:underline"
+                className="text-lg font-semibold text-primary hover:underline"
               >
                 {card.value}
               </Link>

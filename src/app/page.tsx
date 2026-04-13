@@ -22,7 +22,7 @@ export default function Home() {
       {/* Scroll spacer for the 3D flyover */}
       <div className="relative h-[400vh]" />
       {/* Currently section after the flyover */}
-      <div className="relative z-10 bg-[var(--color-surface)] py-20">
+      <div className="relative z-10 bg-surface py-20">
         <CurrentlySection />
       </div>
     </>

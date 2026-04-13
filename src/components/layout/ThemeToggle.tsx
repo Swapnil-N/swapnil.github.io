@@ -22,7 +22,7 @@ export default function ThemeToggle() {
     <button
       aria-label="Toggle theme"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="p-2 rounded-full hover:bg-[var(--color-border)] transition-colors"
+      className="p-2 rounded-full hover:bg-border transition-colors"
     >
       <AnimatePresence mode="wait" initial={false}>
         {isDark ? (

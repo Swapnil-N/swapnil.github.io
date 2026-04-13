@@ -5,10 +5,10 @@ import { useCallback, useRef } from 'react';
 import { skills, type Skill } from '@content/resume';
 
 const categoryColors: Record<string, string> = {
-  Languages: 'bg-[var(--color-primary)]/20 text-[var(--color-primary)]',
-  Frameworks: 'bg-[var(--color-secondary)]/20 text-[var(--color-secondary)]',
-  Cloud: 'bg-[var(--color-accent)]/20 text-[var(--color-accent)]',
-  Tools: 'bg-[var(--color-muted)]/30 text-[var(--color-foreground)]',
+  Languages: 'bg-primary/20 text-primary',
+  Frameworks: 'bg-secondary/20 text-secondary',
+  Cloud: 'bg-accent/20 text-accent',
+  Tools: 'bg-muted/30 text-foreground',
 };
 
 function SkillCard({
@@ -56,7 +56,7 @@ function SkillCard({
         ref={cardRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="rounded-xl border border-[var(--color-border)] p-4 text-center h-full"
+        className="rounded-xl border border-border p-4 text-center h-full"
         style={{ transition: 'transform 0.15s ease' }}
       >
         <span

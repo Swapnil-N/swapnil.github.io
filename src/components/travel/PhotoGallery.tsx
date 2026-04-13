@@ -57,7 +57,7 @@ export default function PhotoGallery({ photos }: { photos: Photo[] }) {
           <button
             key={i}
             onClick={() => setActiveIndex(i)}
-            className="aspect-[4/3] rounded-xl overflow-hidden bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-secondary)]/20 flex items-center justify-center text-[var(--color-muted)] text-sm hover:opacity-80 transition-opacity cursor-pointer"
+            className="aspect-[4/3] rounded-xl overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center text-muted text-sm hover:opacity-80 transition-opacity cursor-pointer"
           >
             {photo.alt}
           </button>
@@ -105,7 +105,7 @@ export default function PhotoGallery({ photos }: { photos: Photo[] }) {
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-[80vw] max-w-3xl aspect-[4/3] rounded-2xl bg-gradient-to-br from-[var(--color-primary)]/30 to-[var(--color-secondary)]/30 flex items-center justify-center text-white text-lg"
+              className="w-[80vw] max-w-3xl aspect-[4/3] rounded-2xl bg-gradient-to-br from-primary/30 to-secondary/30 flex items-center justify-center text-white text-lg"
             >
               {photos[activeIndex].alt}
             </motion.div>

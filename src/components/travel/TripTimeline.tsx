@@ -16,7 +16,7 @@ export default function TripTimeline({ trips }: { trips: Trip[] }) {
   return (
     <div className="relative">
       {/* Vertical center line */}
-      <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-0.5 bg-[var(--color-primary)] opacity-20" />
+      <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-0.5 bg-primary opacity-20" />
 
       <div className="flex flex-col gap-12">
         {trips.map((trip, i) => {
@@ -36,7 +36,7 @@ export default function TripTimeline({ trips }: { trips: Trip[] }) {
             >
               {/* Timeline dot */}
               <div
-                className={`absolute top-6 w-3 h-3 rounded-full bg-[var(--color-primary)] left-[10px] md:left-auto ${
+                className={`absolute top-6 w-3 h-3 rounded-full bg-primary left-[10px] md:left-auto ${
                   isLeft ? 'md:right-[-6px]' : 'md:left-[-6px]'
                 }`}
               />
