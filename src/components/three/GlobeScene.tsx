@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import type { Mesh, Group } from 'three';
+import type { Group } from 'three';
 
 interface Pin {
   lat: number;
