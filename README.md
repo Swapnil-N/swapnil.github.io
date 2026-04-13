@@ -1,4 +1,4 @@
-# Swapnil-Website
+# swapnil.github.io
 
 Personal website built with Next.js 16 (App Router) featuring a 3D interactive hero section, travel globe, project portfolio, and contact form.
 
@@ -24,8 +24,8 @@ Personal website built with Next.js 16 (App Router) featuring a 3D interactive h
 
 ```bash
 # Clone the repository
-git clone https://github.com/Swapnil-N/Swapnil-Website.git
-cd Swapnil-Website
+git clone https://github.com/Swapnil-N/swapnil.github.io.git
+cd swapnil.github.io
 
 # Install dependencies
 npm install
