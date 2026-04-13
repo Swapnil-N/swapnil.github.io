@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 :root {
   /* Font stacks — replace with self-hosted @font-face or Google Fonts link in production */
