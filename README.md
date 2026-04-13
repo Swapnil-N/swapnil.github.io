@@ -10,7 +10,7 @@ Personal website built with Next.js 16 (App Router) featuring a 3D interactive h
 - **3D Graphics:** React Three Fiber + Three.js
 - **Animation:** Framer Motion
 - **Content:** MDX (via next-mdx-remote)
-- **Email:** Resend
+- **Contact:** Google Forms (embedded)
 - **Deployment:** Vercel
 
 ## Getting Started
@@ -78,8 +78,6 @@ Copy `.env.local.example` to `.env.local` and fill in the values:
 
 | Variable | Description |
 |---|---|
-| `RESEND_API_KEY` | API key for contact form email delivery. Get one at [resend.com](https://resend.com). |
-| `CONTACT_EMAIL` | Email address where contact form submissions are sent. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (Phase 2 -- not yet used). |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous/public key (Phase 2 -- not yet used). |
 
@@ -98,7 +96,7 @@ This site is designed for deployment on [Vercel](https://vercel.com):
 
 1. Connect your GitHub repository in the Vercel dashboard.
 2. Vercel will auto-detect Next.js and configure the build.
-3. Add your environment variables (`RESEND_API_KEY`, `CONTACT_EMAIL`, etc.) in the Vercel project settings under Environment Variables.
+3. Add environment variables (if needed) in the Vercel project settings under Environment Variables.
 4. Pushes to the main branch will trigger automatic deployments.
 
 ## TODOs / Customization
@@ -110,5 +108,5 @@ Before going live, complete these manual setup items:
 - [ ] Add travel photos to `public/images/travel/`
 - [ ] Add an earth texture image to `public/models/`
 - [ ] Update social links in the Footer component
-- [ ] Create a [Resend](https://resend.com) account and set `RESEND_API_KEY` in `.env.local`
+- [ ] Create a Google Form for contact and update the embed URL in `src/app/contact/page.tsx`
 - [ ] **Phase 2:** Set up Supabase for auth and family tree features (not yet implemented)
