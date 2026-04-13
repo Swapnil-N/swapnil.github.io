@@ -5,9 +5,22 @@ import Footer from "@/components/layout/Footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://swapnil.dev"),
   title: "Swapnil Nandeshwar",
   description:
     "Personal website — Forward Deployed Engineer, traveler, builder.",
+  openGraph: {
+    title: "Swapnil Nandeshwar",
+    description:
+      "Personal website — Forward Deployed Engineer, traveler, builder.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Swapnil Nandeshwar",
+    description:
+      "Personal website — Forward Deployed Engineer, traveler, builder.",
+  },
 };
 
 export default function RootLayout({
