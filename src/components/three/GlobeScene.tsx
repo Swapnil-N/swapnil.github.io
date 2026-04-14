@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
+import { Html, useTexture } from '@react-three/drei';
 import type { Group } from 'three';
 
 interface Pin {
@@ -56,6 +56,7 @@ function GlobePin({ lat, lng, title, radius }: { lat: number; lng: number; title
 
 function Globe({ pins }: { pins: Pin[] }) {
   const groupRef = useRef<Group>(null);
+  const texture = useTexture('/models/earth-texture.jpg');
 
   useFrame((_, delta) => {
     if (groupRef.current) {
@@ -70,9 +71,9 @@ function Globe({ pins }: { pins: Pin[] }) {
       <mesh>
         <sphereGeometry args={[radius, 64, 64]} />
         <meshStandardMaterial
-          color="#1a1a4e"
-          roughness={0.8}
-          metalness={0.2}
+          map={texture}
+          roughness={0.7}
+          metalness={0.1}
         />
       </mesh>
       {pins.map((pin) => (
