@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const name = 'Swapnil Napuri';
 const tagline = 'Experience Maxer \u00b7 Adventurer';
@@ -15,16 +15,10 @@ const wordVariants = {
 };
 
 export default function AnimatedText() {
-  const { scrollY } = useScroll();
-  const opacity = useTransform(scrollY, [0, 400], [1, 0]);
-
   const nameWords = name.split(' ');
 
   return (
-    <motion.div
-      style={{ opacity }}
-      className="fixed inset-0 z-10 flex flex-col items-center justify-center pointer-events-none"
-    >
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
       <h1 className="font-heading text-5xl md:text-7xl font-bold text-center">
         {nameWords.map((word, i) => (
           <motion.span
@@ -47,33 +41,6 @@ export default function AnimatedText() {
       >
         {tagline}
       </motion.p>
-
-      {/* Scroll indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2, duration: 0.6 }}
-        className="absolute bottom-12 flex flex-col items-center gap-2"
-      >
-        <span className="text-sm text-muted">
-          Scroll to explore
-        </span>
-        <motion.svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-muted"
-          animate={{ y: [0, 6, 0] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <path d="M12 5v14M5 12l7 7 7-7" />
-        </motion.svg>
-      </motion.div>
-    </motion.div>
+    </div>
   );
 }
