@@ -23,7 +23,7 @@ export async function generateMetadata({
   try {
     const { frontmatter } = getTripBySlug(slug);
     return {
-      title: `${frontmatter.title} — Swapnil Nandeshwar`,
+      title: `${frontmatter.title} — Swapnil Napuri`,
       description: (frontmatter.excerpt as string) || '',
     };
   } catch {

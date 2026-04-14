@@ -8,7 +8,7 @@ import { now } from '@content/now';
 const cards = [
   { icon: '\ud83d\udccd', label: 'Location', value: now.location },
   { icon: '\ud83d\udcbb', label: 'Working on', value: now.workingOn },
-  { icon: '\ud83d\udcda', label: 'Reading', value: now.reading },
+  { icon: '\ud83c\udfac', label: 'Watching', value: now.watching },
   {
     icon: '\u2708\ufe0f',
     label: 'Last trip',

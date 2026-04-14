@@ -19,20 +19,20 @@ const dmSans = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://swapnil.dev"),
-  title: "Swapnil Nandeshwar",
+  title: "Swapnil Napuri",
   description:
-    "Personal website — Forward Deployed Engineer, traveler, builder.",
+    "Personal website — Experience maxer, adventurer, builder.",
   openGraph: {
-    title: "Swapnil Nandeshwar",
+    title: "Swapnil Napuri",
     description:
-      "Personal website — Forward Deployed Engineer, traveler, builder.",
+      "Personal website — Experience maxer, adventurer, builder.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Swapnil Nandeshwar",
+    title: "Swapnil Napuri",
     description:
-      "Personal website — Forward Deployed Engineer, traveler, builder.",
+      "Personal website — Experience maxer, adventurer, builder.",
   },
 };
 

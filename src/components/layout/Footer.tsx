@@ -59,7 +59,7 @@ export default function Footer() {
 
         {/* Copyright */}
         <p className="text-sm text-muted">
-          &copy; {new Date().getFullYear()} Swapnil Nandeshwar
+          &copy; {new Date().getFullYear()} Swapnil Napuri
         </p>
       </div>
     </footer>

@@ -2,8 +2,8 @@
 
 import { motion, useScroll, useTransform } from 'framer-motion';
 
-const name = 'Swapnil Nandeshwar';
-const tagline = 'Forward Deployed Engineer \u00b7 Traveler \u00b7 Builder';
+const name = 'Swapnil Napuri';
+const tagline = 'Experience Maxer \u00b7 Adventurer';
 
 const wordVariants = {
   hidden: { opacity: 0, y: 20 },
