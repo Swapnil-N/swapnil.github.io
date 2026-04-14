@@ -106,7 +106,6 @@ Before going live, complete these manual setup items:
 - [ ] Replace placeholder content in `content/projects.ts`, `content/now.ts`, and `content/travel/` MDX files
 - [ ] Add your `resume.pdf` to `public/`
 - [ ] Add travel photos to `public/images/travel/`
-- [ ] Add an earth texture image to `public/models/`
-- [ ] Update social links in the Footer component
+- [ ] Update social links in the Footer component (GitHub, LinkedIn, Instagram URLs)
 - [ ] Create a Google Form for contact and update the embed URL in `src/app/contact/page.tsx`
 - [ ] **Phase 2:** Set up Supabase for auth and family tree features (not yet implemented)
