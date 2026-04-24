@@ -1,4 +1,10 @@
+import type { Metadata } from 'next';
 import PageTransition from '@/components/layout/PageTransition';
+
+export const metadata: Metadata = {
+  title: 'Contact — Swapnil Napuri',
+  description: 'Get in touch.',
+};
 
 // TODO: Replace this URL with your actual Google Form embed URL.
 // To get it: Google Forms → Send → Embed icon (<>) → copy the src URL

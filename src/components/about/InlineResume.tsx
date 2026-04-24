@@ -116,6 +116,7 @@ export default function InlineResume() {
       </AnimatePresence>
 
       {/* Download Button */}
+      {/* Download button — place resume.pdf in public/ to enable */}
       <div className="mt-8 flex items-center gap-4">
         <a
           href="/resume.pdf"
@@ -124,7 +125,6 @@ export default function InlineResume() {
         >
           Download Resume (PDF)
         </a>
-        <span className="text-sm text-muted">Add your resume.pdf to public/</span>
       </div>
     </div>
   );

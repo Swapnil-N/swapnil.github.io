@@ -1,6 +1,12 @@
+import type { Metadata } from 'next';
 import { projects } from '@content/projects';
 import ProjectCard from '@/components/projects/ProjectCard';
 import PageTransition from '@/components/layout/PageTransition';
+
+export const metadata: Metadata = {
+  title: 'Projects — Swapnil Napuri',
+  description: "Things I've built, contributed to, and am working on.",
+};
 
 export default function ProjectsPage() {
   return (

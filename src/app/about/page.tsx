@@ -1,7 +1,13 @@
+import type { Metadata } from 'next';
 import PageTransition from '@/components/layout/PageTransition';
 import ExperienceTimeline from '@/components/about/ExperienceTimeline';
 import SkillsVisualization from '@/components/about/SkillsVisualization';
 import InlineResume from '@/components/about/InlineResume';
+
+export const metadata: Metadata = {
+  title: 'About — Swapnil Napuri',
+  description: 'Experience, skills, and resume.',
+};
 
 export default function AboutPage() {
   return (

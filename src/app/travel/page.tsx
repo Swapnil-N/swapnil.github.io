@@ -1,7 +1,13 @@
+import type { Metadata } from 'next';
 import { trips } from '@content/travel/_meta';
 import TripTimeline from '@/components/travel/TripTimeline';
 import PageTransition from '@/components/layout/PageTransition';
 import GlobeSection from '@/components/travel/GlobeSection';
+
+export const metadata: Metadata = {
+  title: 'Travel — Swapnil Napuri',
+  description: 'Trips and adventures around the world.',
+};
 
 export default function TravelPage() {
   const globePins = trips.map((t) => ({

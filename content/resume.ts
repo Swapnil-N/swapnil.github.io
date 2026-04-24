@@ -24,12 +24,6 @@ export const experiences: Experience[] = [
     period: '2020 — 2022',
     description: 'Full-stack development with React, Node.js, and AWS. Built scalable microservices serving millions of requests daily.',
   },
-  {
-    company: 'University of Michigan',
-    role: 'B.S. Computer Science',
-    period: '2016 — 2020',
-    description: 'Focus on distributed systems and machine learning. Teaching assistant for intro CS courses.',
-  },
 ];
 
 export const skills: Skill[] = [
