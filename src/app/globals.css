@@ -1,0 +1,51 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  /* Font CSS variables are set by next/font in layout.tsx */
+
+  --color-primary: #ff5a5f;
+  --color-secondary: #3232ff;
+  --color-accent: #ffc832;
+  --color-surface: #0f0f19;
+  --color-surface-light: #fafaff;
+  --color-text: #f5f5ff;
+  --color-text-light: #14141e;
+  --color-muted: rgba(245, 245, 255, 0.6);
+  --color-muted-light: rgba(20, 20, 30, 0.6);
+  --color-border: rgba(245, 245, 255, 0.1);
+  --color-border-light: rgba(20, 20, 30, 0.1);
+  --color-card: rgba(255, 255, 255, 0.05);
+  --color-card-light: rgba(0, 0, 0, 0.05);
+  --color-on-primary: #ffffff;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-surface: var(--color-surface);
+  --color-foreground: var(--color-text);
+  --color-muted: var(--color-muted);
+  --color-border: var(--color-border);
+  --color-card: var(--color-card);
+  --color-on-primary: var(--color-on-primary);
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+}
+
+body {
+  background: var(--color-surface);
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+/* Dark mode is default. Light mode overrides: */
+[data-theme="light"] {
+  --color-surface: var(--color-surface-light);
+  --color-text: var(--color-text-light);
+  --color-muted: var(--color-muted-light);
+  --color-border: var(--color-border-light);
+  --color-card: var(--color-card-light);
+}
