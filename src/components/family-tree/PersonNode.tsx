@@ -1,6 +1,7 @@
 'use client';
 
 import { memo } from 'react';
+import Image from 'next/image';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { Person } from '@/types/family';
 
@@ -16,9 +17,12 @@ function PersonNode({ data }: NodeProps<Person>) {
 
       <div className="flex items-center gap-3">
         {data.photo_url ? (
-          <img
+          <Image
             src={data.photo_url}
             alt={fullName}
+            width={40}
+            height={40}
+            unoptimized
             className="w-10 h-10 rounded-full object-cover border border-border"
           />
         ) : (

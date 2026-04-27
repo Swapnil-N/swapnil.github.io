@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Person } from '@/types/family';
 
@@ -35,9 +36,12 @@ export default function PersonDetailPanel({ person, onClose }: Props) {
 
           <div className="flex flex-col items-center text-center mt-4">
             {person.photo_url ? (
-              <img
+              <Image
                 src={person.photo_url}
                 alt={fullName}
+                width={96}
+                height={96}
+                unoptimized
                 className="w-24 h-24 rounded-full object-cover border-2 border-border mb-4"
               />
             ) : (
