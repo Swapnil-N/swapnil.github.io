@@ -16,6 +16,8 @@ Currently on `main` branch.
 - **MDX** via `gray-matter` + `next-mdx-remote/rsc` (travel trip content)
 - **next-themes** with `attribute="data-theme"` (dark mode default)
 - **Self-hosted fonts** via `next/font/local` (Space Grotesk for headings, DM Sans for body)
+- **Supabase** (`@supabase/supabase-js` + `@supabase/ssr`) for auth and family tree data
+- **ReactFlow** + `dagre` (family tree visualization)
 - **React 19**, **TypeScript 5**
 
 ## Key Architecture Decisions
@@ -27,6 +29,8 @@ Currently on `main` branch.
 - **React 19 strict lint rules**: No `Math.random()` in `useMemo` or during render. No `setState` in `useEffect`. No refs during render. Use deterministic alternatives or module-scope generation.
 - **Travel trips**: Add an MDX file to `content/travel/` AND update `content/travel/_meta.ts` (the source of truth for globe pins and ordering).
 - **Contact page**: Uses a Google Form embed (no backend API route).
+- **Auth**: Supabase Auth with invite-only model. Middleware protects `/family-tree`. Login at `/login`.
+- **Family tree**: Data stored in Supabase (NOT in repo — repo is public). ReactFlow + dagre for visualization. Only accessible to authenticated users.
 
 ## Project Structure
 
@@ -34,8 +38,11 @@ Currently on `main` branch.
 content/           — Content data (travel MDX, projects, resume, now)
 public/            — Static assets (images, models, fonts, favicon)
 src/app/           — Pages (Next.js App Router)
-src/components/    — React components by feature (three/, layout/, ui/, home/, travel/, about/, projects/)
-src/lib/           — Utilities (mdx.ts)
+src/components/    — React components by feature (three/, layout/, ui/, home/, travel/, about/, projects/, family-tree/)
+src/lib/           — Utilities (mdx.ts, supabase/)
+src/types/         — TypeScript types (family.ts)
+middleware.ts      — Next.js middleware (Supabase session refresh, route protection)
+supabase-schema.sql — Database schema (run in Supabase SQL editor)
 ```
 
 ## Development Commands
@@ -53,11 +60,13 @@ src/lib/           — Utilities (mdx.ts)
 - Trip detail pages at `/travel/[slug]` use `generateStaticParams` + `generateMetadata`.
 - Globe pins come from `_meta.ts`, NOT from parsing MDX frontmatter.
 
-## Phase 2 (Not Yet Built)
+## Phase 2 (Built)
 
-- Supabase auth (invite-only) + family tree behind auth
-- Environment vars for Supabase in `.env.local.example`
-- Planned routes: `/login`, `/family-tree`
+- **Auth**: Supabase Auth with invite-only model. Routes: `/login`, `/auth/callback`, `/api/invite`.
+- **Family tree**: `/family-tree` — ReactFlow visualization with dagre layout, custom person nodes, detail panel. Data in Supabase `people` + `relationships` tables.
+- **Middleware**: `middleware.ts` protects `/family-tree/*`, redirects unauthenticated to `/login`.
+- **SQL schema**: `supabase-schema.sql` — run in Supabase SQL editor to create tables, RLS policies, and auth trigger.
+- **To activate**: Create a Supabase project, set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local`, run the SQL schema.
 
 ## TODOs
 
@@ -67,7 +76,8 @@ src/lib/           — Utilities (mdx.ts)
 - Add travel photos to `public/images/travel/{slug}/`
 - Add trip pages for Florida Keys/Miami and Spain
 - Personalize placeholder trip descriptions in MDX files
-- Phase 2: Supabase auth + family tree
+- Set up Supabase project and run `supabase-schema.sql`
+- Set first user as admin in Supabase `profiles` table (`role = 'admin'`)
 
 ## Common Pitfalls
 
