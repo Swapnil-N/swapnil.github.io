@@ -10,7 +10,8 @@ type Mode = 'signin' | 'signup';
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') ?? '/family-tree';
+  const rawRedirect = searchParams.get('redirect');
+  const redirectTo = rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/family-tree';
 
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
@@ -53,6 +54,7 @@ export default function LoginPage() {
       }
     }
 
+    router.refresh();
     router.push(redirectTo);
   }
 

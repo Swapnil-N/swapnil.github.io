@@ -88,15 +88,12 @@ create policy "Admin can modify relationships"
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, role)
+  insert into public.profiles (id, email, display_name, role)
   values (
     new.id,
     new.email,
-    case
-      when exists (select 1 from public.invitations where email = new.email and status = 'pending')
-      then 'family_member'
-      else 'family_member'
-    end
+    new.raw_user_meta_data->>'display_name',
+    'family_member'
   );
   -- Mark invitation as accepted
   update public.invitations set status = 'accepted' where email = new.email;

@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/login/", "/family-tree/"],
+      disallow: ['/login', '/family-tree', '/auth', '/api'],
     },
     sitemap: "https://swapnil.dev/sitemap.xml",
   };

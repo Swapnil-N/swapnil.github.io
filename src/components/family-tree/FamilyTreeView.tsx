@@ -13,6 +13,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import type { Person, Relationship } from '@/types/family';
+import { AnimatePresence } from 'framer-motion';
 import PersonNode from './PersonNode';
 import PersonDetailPanel from './PersonDetailPanel';
 
@@ -142,12 +143,15 @@ export default function FamilyTreeView({ people, relationships }: Props) {
         />
       </ReactFlow>
 
-      {selectedPerson && (
-        <PersonDetailPanel
-          person={selectedPerson}
-          onClose={() => setSelectedPerson(null)}
-        />
-      )}
+      <AnimatePresence>
+        {selectedPerson && (
+          <PersonDetailPanel
+            key={selectedPerson.id}
+            person={selectedPerson}
+            onClose={() => setSelectedPerson(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -21,7 +21,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
 
-  const { email } = await req.json();
+  let email: string;
+  try {
+    ({ email } = await req.json());
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
   if (!email) {
     return NextResponse.json({ error: 'Email required' }, { status: 400 });
   }
@@ -39,8 +44,7 @@ export async function POST(req: Request) {
   const { error: authError } = await supabase.auth.admin.inviteUserByEmail(email);
 
   if (authError) {
-    // Admin invite requires service role key — invitation stored, user can sign up manually
-    console.log('Admin invite requires service role key. Invitation stored, user can sign up manually.');
+    return NextResponse.json({ ok: true, message: `Invitation recorded for ${email}. They can sign up at /login.` });
   }
 
   return NextResponse.json({ ok: true, message: `Invitation sent to ${email}` });
