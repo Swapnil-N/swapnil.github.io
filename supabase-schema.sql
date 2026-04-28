@@ -1,3 +1,12 @@
+-- Helper function: check if current user is admin (avoids RLS infinite recursion)
+create or replace function public.is_admin()
+returns boolean as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'admin'
+  );
+$$ language sql security definer stable;
+
 -- Profiles table (extends Supabase auth.users)
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
@@ -16,9 +25,7 @@ create policy "Users can read own profile"
 
 create policy "Admin can read all profiles"
   on public.profiles for select
-  using (
-    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
-  );
+  using (public.is_admin());
 
 -- Invitations table
 create table if not exists public.invitations (
@@ -33,9 +40,7 @@ alter table public.invitations enable row level security;
 
 create policy "Admin can manage invitations"
   on public.invitations for all
-  using (
-    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
-  );
+  using (public.is_admin());
 
 -- People table (family tree nodes)
 create table if not exists public.people (
@@ -54,13 +59,11 @@ alter table public.people enable row level security;
 
 create policy "Authenticated users can read people"
   on public.people for select
-  using (auth.role() = 'authenticated');
+  using (auth.uid() is not null);
 
 create policy "Admin can modify people"
   on public.people for all
-  using (
-    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
-  );
+  using (public.is_admin());
 
 -- Relationships table (family tree edges)
 create table if not exists public.relationships (
@@ -75,13 +78,11 @@ alter table public.relationships enable row level security;
 
 create policy "Authenticated users can read relationships"
   on public.relationships for select
-  using (auth.role() = 'authenticated');
+  using (auth.uid() is not null);
 
 create policy "Admin can modify relationships"
   on public.relationships for all
-  using (
-    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
-  );
+  using (public.is_admin());
 
 -- Auto-create profile on signup
 create or replace function public.handle_new_user()
