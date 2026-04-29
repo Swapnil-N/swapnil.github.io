@@ -6,7 +6,7 @@ import { education } from '@content/resume';
 import { projects } from '@content/projects';
 
 export const metadata: Metadata = {
-  title: 'About — Swapnil Napuri',
+  title: 'Resume — Swapnil Napuri',
   description: 'Experience, skills, and resume.',
 };
 
@@ -14,15 +14,15 @@ export default function AboutPage() {
   return (
     <PageTransition>
       <div className="min-h-screen max-w-5xl mx-auto px-6 py-12">
-        <h1 className="font-heading text-4xl md:text-6xl font-bold mb-4">About Me</h1>
+        <h1 className="font-heading text-4xl md:text-6xl font-bold mb-4">Resume</h1>
         <p className="text-muted text-lg mb-8 max-w-2xl">
-          Experience maxer and adventurer. I build things, travel the world, and try to make the most of every moment.
+          Forward Deployed Engineer building AI-powered solutions. Previously at Palantir, Amazon, Bank of America, and Bloomberg.
         </p>
 
         {/* Resume download at top */}
         <div className="mb-16">
           <a
-            href="/swapnil_napuri_resume.pdf"
+            href="/Swapnil_Napuri_Resume.pdf"
             download
             className="inline-flex items-center gap-2 rounded-xl bg-primary text-white px-6 py-3 font-medium hover:opacity-90 transition-opacity"
           >
