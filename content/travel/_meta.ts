@@ -121,6 +121,15 @@ export const trips: TripMeta[] = [
   },
   // 2024
   {
+    slug: "florida-keys-2024",
+    title: "Florida Keys & Miami",
+    lat: 24.5551,
+    lng: -81.7800,
+    startDate: "2024-12-15",
+    excerpt: "Island hopping through the Florida Keys — sunsets, snorkeling, and the Overseas Highway.",
+    coverImage: "/images/travel/florida-keys-2024/cover.jpg",
+  },
+  {
     slug: "guatemala-2024",
     title: "Guatemala",
     lat: 14.6349,
@@ -146,5 +155,15 @@ export const trips: TripMeta[] = [
     startDate: "2024-04-04",
     excerpt: "Traveled to Detroit to witness the total solar eclipse — a once-in-a-lifetime celestial event.",
     coverImage: "/images/travel/detroit-eclipse-2024/cover.jpg",
+  },
+  // 2023
+  {
+    slug: "spain-2023",
+    title: "Spain",
+    lat: 41.3874,
+    lng: 2.1686,
+    startDate: "2023-07-10",
+    excerpt: "Two weeks exploring Spain — tapas, flamenco, Gaudí, and the energy of Madrid.",
+    coverImage: "/images/travel/spain-2023/cover.jpg",
   },
 ];

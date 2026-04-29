@@ -6,10 +6,8 @@ export const metadata: Metadata = {
   description: 'Get in touch.',
 };
 
-// TODO: Replace this URL with your actual Google Form embed URL.
-// To get it: Google Forms → Send → Embed icon (<>) → copy the src URL
 const GOOGLE_FORM_EMBED_URL =
-  'https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform?embedded=true';
+  'https://forms.gle/Fssmx3JS5kn8UF6J7';
 
 export default function ContactPage() {
   return (

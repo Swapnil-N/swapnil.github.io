@@ -5,7 +5,7 @@ export default function Footer() {
         {/* Social links */}
         <div className="flex items-center gap-5">
           <a
-            href="https://github.com/swapnil-n"
+            href="https://github.com/Swapnil-N/"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
@@ -22,7 +22,7 @@ export default function Footer() {
             </svg>
           </a>
           <a
-            href="https://linkedin.com/in/swapnil"
+            href="https://www.linkedin.com/in/swapnilnapuri"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="LinkedIn"
@@ -39,7 +39,7 @@ export default function Footer() {
             </svg>
           </a>
           <a
-            href="https://instagram.com/swapnil"
+            href="https://www.instagram.com/swapnil.napuri/"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Instagram"

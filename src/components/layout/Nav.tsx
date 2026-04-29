@@ -8,9 +8,8 @@ import ThemeToggle from './ThemeToggle';
 
 const links = [
   { href: '/', label: 'Home' },
-  { href: '/travel', label: 'Travel' },
-  { href: '/projects', label: 'Projects' },
   { href: '/about', label: 'About' },
+  { href: '/travel', label: 'Travel' },
   { href: '/contact', label: 'Contact' },
 ];
 
@@ -54,6 +53,17 @@ export default function Nav() {
               </Link>
             );
           })}
+          <span className="text-border select-none">|</span>
+          <Link
+            href="/login"
+            className={`text-sm transition-colors ${
+              pathname === '/login'
+                ? 'text-primary'
+                : 'text-muted hover:text-primary'
+            }`}
+          >
+            Login
+          </Link>
           <ThemeToggle />
         </div>
 
@@ -115,6 +125,19 @@ export default function Nav() {
                   </Link>
                 );
               })}
+              <div className="border-t border-border mt-2 pt-2">
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                    pathname === '/login'
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted hover:text-primary hover:bg-border'
+                  }`}
+                >
+                  Login
+                </Link>
+              </div>
             </div>
           </motion.div>
         )}
