@@ -56,8 +56,14 @@ export default function AboutPage() {
             {education.map((edu, i) => (
               <div key={i} className="bg-surface border border-border rounded-2xl p-6">
                 <h3 className="font-heading font-bold text-lg">{edu.company}</h3>
-                <p className="text-muted text-sm mt-1">{edu.role} · {edu.period}</p>
-                <p className="text-muted mt-3">{edu.description}</p>
+                <p className="text-muted text-sm mt-1">{edu.role} · {edu.period} · {edu.location}</p>
+                <ul className="mt-3 space-y-1.5 ml-4 list-disc">
+                  {edu.bullets.map((bullet, j) => (
+                    <li key={j} className="text-sm text-muted leading-relaxed">
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>
