@@ -16,6 +16,7 @@ const ENTRY_IDS = {
 
 export default function ContactPage() {
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [reason, setReason] = useState('');
   const [message, setMessage] = useState('');
@@ -30,6 +31,7 @@ export default function ContactPage() {
     setLoading(true);
 
     const formData = new URLSearchParams();
+    formData.append('emailAddress', email);
     formData.append(ENTRY_IDS.name, name);
     formData.append(ENTRY_IDS.phone, phone);
     formData.append(ENTRY_IDS.reason, reason);
@@ -88,7 +90,7 @@ export default function ContactPage() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium mb-2">
-                    Name
+                    Name (First and Last)
                   </label>
                   <input
                     id="name"
@@ -97,27 +99,43 @@ export default function ContactPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className={inputClass}
-                    placeholder="Your name"
+                    placeholder="John Doe"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium mb-2">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClass}
+                    placeholder="you@example.com"
                   />
                 </div>
 
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium mb-2">
-                    Phone
+                    Phone Number
                   </label>
                   <input
                     id="phone"
                     type="tel"
+                    required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className={inputClass}
-                    placeholder="(optional)"
+                    placeholder="(555) 123-4567"
                   />
                 </div>
 
                 <div>
                   <label htmlFor="reason" className="block text-sm font-medium mb-2">
-                    Reason
+                    How did you hear about me or know me?
                   </label>
                   <input
                     id="reason"
