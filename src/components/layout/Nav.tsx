@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ThemeToggle from './ThemeToggle';
 
 const links = [
   { href: '/', label: 'Home' },
@@ -64,12 +63,10 @@ export default function Nav() {
           >
             Login
           </Link>
-          <ThemeToggle />
         </div>
 
-        {/* Mobile: theme toggle + hamburger */}
+        {/* Mobile hamburger */}
         <div className="flex md:hidden items-center gap-2">
-          <ThemeToggle />
           <button
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             onClick={() => setMobileOpen((prev) => !prev)}
