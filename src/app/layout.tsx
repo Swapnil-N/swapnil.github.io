@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from "next-themes";
 import localFont from 'next/font/local';
 import Nav from "@/components/layout/Nav";
 import Footer from "@/components/layout/Footer";
@@ -42,17 +41,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${spaceGrotesk.variable} ${dmSans.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${spaceGrotesk.variable} ${dmSans.variable}`}>
       <body className="min-h-screen flex flex-col bg-surface text-foreground antialiased">
-        <ThemeProvider
-          attribute="data-theme"
-          defaultTheme="dark"
-          enableSystem={false}
-        >
-          <Nav />
-          <main className="pt-16 flex-1">{children}</main>
-          <Footer />
-        </ThemeProvider>
+        <Nav />
+        <main className="pt-16 flex-1">{children}</main>
+        <Footer />
       </body>
     </html>
   );

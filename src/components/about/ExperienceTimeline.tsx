@@ -40,9 +40,15 @@ export default function ExperienceTimeline() {
               >
                 <h3 className="font-heading text-xl font-bold">{exp.company}</h3>
                 <p className="text-muted text-sm mt-1">
-                  {exp.role} &middot; {exp.period}
+                  {exp.role} &middot; {exp.period} &middot; {exp.location}
                 </p>
-                <p className="mt-3 text-sm leading-relaxed">{exp.description}</p>
+                <ul className="mt-3 space-y-1.5 ml-4 list-disc">
+                  {exp.bullets.map((bullet, j) => (
+                    <li key={j} className="text-sm text-muted leading-relaxed">
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
               </motion.div>
             </div>
           );
