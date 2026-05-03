@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageTransition from '@/components/layout/PageTransition';
 
@@ -15,19 +15,95 @@ const ENTRY_IDS = {
   message: 'entry.1427964070',
 } as const;
 
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+const COUNTRY_CODES = [
+  { code: '+1', label: 'US +1', flag: '🇺🇸' },
+  { code: '+44', label: 'UK +44', flag: '🇬🇧' },
+  { code: '+91', label: 'IN +91', flag: '🇮🇳' },
+  { code: '+33', label: 'FR +33', flag: '🇫🇷' },
+  { code: '+49', label: 'DE +49', flag: '🇩🇪' },
+  { code: '+81', label: 'JP +81', flag: '🇯🇵' },
+  { code: '+86', label: 'CN +86', flag: '🇨🇳' },
+  { code: '+61', label: 'AU +61', flag: '🇦🇺' },
+  { code: '+55', label: 'BR +55', flag: '🇧🇷' },
+  { code: '+52', label: 'MX +52', flag: '🇲🇽' },
+  { code: '+82', label: 'KR +82', flag: '🇰🇷' },
+  { code: '+39', label: 'IT +39', flag: '🇮🇹' },
+  { code: '+34', label: 'ES +34', flag: '🇪🇸' },
+  { code: '+971', label: 'AE +971', flag: '🇦🇪' },
+  { code: '+65', label: 'SG +65', flag: '🇸🇬' },
+];
+
+function formatUSPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+function getPhoneDigits(formatted: string): string {
+  return formatted.replace(/\D/g, '');
+}
+
 export default function ContactPage() {
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [countryCode, setCountryCode] = useState('+1');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const formRef = useRef<HTMLFormElement>(null);
 
   const inputClass =
     'w-full rounded-xl bg-transparent border border-border px-4 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors';
 
+  const errorInputClass =
+    'w-full rounded-xl bg-transparent border border-red-500 px-4 py-3 text-foreground focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 transition-colors';
+
+  function handlePhoneChange(e: ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value;
+    if (countryCode === '+1') {
+      setPhone(formatUSPhone(raw));
+    } else {
+      setPhone(raw.replace(/[^\d\s-]/g, ''));
+    }
+    if (errors.phone) {
+      setErrors((prev) => ({ ...prev, phone: '' }));
+    }
+  }
+
+  function handleEmailChange(e: ChangeEvent<HTMLInputElement>) {
+    setEmail(e.target.value);
+    if (errors.email) {
+      setErrors((prev) => ({ ...prev, email: '' }));
+    }
+  }
+
+  function validate(): boolean {
+    const newErrors: Record<string, string> = {};
+
+    if (!EMAIL_REGEX.test(email)) {
+      newErrors.email = 'Please enter a valid email address.';
+    }
+
+    const phoneDigits = getPhoneDigits(phone);
+    if (countryCode === '+1' && phoneDigits.length !== 10) {
+      newErrors.phone = 'US phone numbers must be 10 digits.';
+    } else if (phoneDigits.length < 6) {
+      newErrors.phone = 'Please enter a valid phone number.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!validate()) return;
+
     setLoading(true);
 
-    // Submit via hidden iframe to avoid CORS issues entirely
     const iframe = document.createElement('iframe');
     iframe.name = 'hidden-form-target';
     iframe.style.display = 'none';
@@ -40,14 +116,14 @@ export default function ContactPage() {
       formRef.current.submit();
     }
 
-    // Google Forms doesn't send back a cross-origin response we can read,
-    // so we wait a moment then show success
     setTimeout(() => {
       setLoading(false);
       setSubmitted(true);
       iframe.remove();
     }, 1500);
   }
+
+  const fullPhone = `${countryCode} ${phone}`;
 
   return (
     <PageTransition>
@@ -85,13 +161,14 @@ export default function ContactPage() {
               <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium mb-2">
-                    Name (First and Last)
+                    Name (First and Last) <span className="text-primary">*</span>
                   </label>
                   <input
                     id="name"
                     name={ENTRY_IDS.name}
                     type="text"
                     required
+                    minLength={2}
                     className={inputClass}
                     placeholder="John Doe"
                   />
@@ -99,41 +176,69 @@ export default function ContactPage() {
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium mb-2">
-                    Email
+                    Email <span className="text-primary">*</span>
                   </label>
                   <input
                     id="email"
                     name={ENTRY_IDS.email}
                     type="email"
                     required
-                    className={inputClass}
+                    value={email}
+                    onChange={handleEmailChange}
+                    className={errors.email ? errorInputClass : inputClass}
                     placeholder="you@example.com"
                   />
+                  {errors.email && (
+                    <p className="text-red-400 text-xs mt-1.5">{errors.email}</p>
+                  )}
                 </div>
 
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium mb-2">
-                    Phone Number
+                    Phone Number <span className="text-primary">*</span>
                   </label>
-                  <input
-                    id="phone"
-                    name={ENTRY_IDS.phone}
-                    type="tel"
-                    required
-                    className={inputClass}
-                    placeholder="(555) 123-4567"
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      value={countryCode}
+                      onChange={(e) => {
+                        setCountryCode(e.target.value);
+                        setPhone('');
+                      }}
+                      className="rounded-xl bg-transparent border border-border px-3 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors text-sm w-28 shrink-0"
+                    >
+                      {COUNTRY_CODES.map((cc) => (
+                        <option key={cc.code} value={cc.code} className="bg-surface">
+                          {cc.flag} {cc.code}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      id="phone"
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={handlePhoneChange}
+                      className={errors.phone ? errorInputClass : inputClass}
+                      placeholder={countryCode === '+1' ? '555-123-4567' : 'Phone number'}
+                    />
+                  </div>
+                  {errors.phone && (
+                    <p className="text-red-400 text-xs mt-1.5">{errors.phone}</p>
+                  )}
+                  {/* Hidden input sends the full phone with country code to Google Forms */}
+                  <input type="hidden" name={ENTRY_IDS.phone} value={fullPhone} />
                 </div>
 
                 <div>
                   <label htmlFor="reason" className="block text-sm font-medium mb-2">
-                    How did you hear about me or know me?
+                    How did you hear about me or know me? <span className="text-primary">*</span>
                   </label>
                   <input
                     id="reason"
                     name={ENTRY_IDS.reason}
                     type="text"
                     required
+                    minLength={2}
                     className={inputClass}
                     placeholder="Networking, collaboration, etc."
                   />
@@ -141,12 +246,13 @@ export default function ContactPage() {
 
                 <div>
                   <label htmlFor="message" className="block text-sm font-medium mb-2">
-                    Message
+                    Message <span className="text-primary">*</span>
                   </label>
                   <textarea
                     id="message"
                     name={ENTRY_IDS.message}
                     required
+                    minLength={10}
                     rows={5}
                     className={inputClass + ' resize-none'}
                     placeholder="Your message..."
