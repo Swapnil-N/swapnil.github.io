@@ -4,13 +4,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ThemeToggle from './ThemeToggle';
 
 const links = [
   { href: '/', label: 'Home' },
+  { href: '/about', label: 'Resume' },
   { href: '/travel', label: 'Travel' },
-  { href: '/projects', label: 'Projects' },
-  { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];
 
@@ -54,12 +52,21 @@ export default function Nav() {
               </Link>
             );
           })}
-          <ThemeToggle />
+          <span className="text-border select-none">|</span>
+          <Link
+            href="/login"
+            className={`text-sm transition-colors ${
+              pathname === '/login'
+                ? 'text-primary'
+                : 'text-muted hover:text-primary'
+            }`}
+          >
+            Login
+          </Link>
         </div>
 
-        {/* Mobile: theme toggle + hamburger */}
+        {/* Mobile hamburger */}
         <div className="flex md:hidden items-center gap-2">
-          <ThemeToggle />
           <button
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             onClick={() => setMobileOpen((prev) => !prev)}
@@ -115,6 +122,19 @@ export default function Nav() {
                   </Link>
                 );
               })}
+              <div className="border-t border-border mt-2 pt-2">
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                    pathname === '/login'
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted hover:text-primary hover:bg-border'
+                  }`}
+                >
+                  Login
+                </Link>
+              </div>
             </div>
           </motion.div>
         )}

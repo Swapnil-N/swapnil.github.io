@@ -38,11 +38,20 @@ export default function ExperienceTimeline() {
                   isLeft ? 'md:mr-auto md:pr-6' : 'md:ml-auto md:pl-6'
                 }`}
               >
-                <h3 className="font-heading text-xl font-bold">{exp.company}</h3>
+                <div className="flex items-start justify-between gap-4">
+                  <h3 className="font-heading text-xl font-bold">{exp.company}</h3>
+                  <span className="text-muted text-sm shrink-0">{exp.location}</span>
+                </div>
                 <p className="text-muted text-sm mt-1">
                   {exp.role} &middot; {exp.period}
                 </p>
-                <p className="mt-3 text-sm leading-relaxed">{exp.description}</p>
+                <ul className="mt-3 space-y-1.5 ml-4 list-disc">
+                  {exp.bullets.map((bullet, j) => (
+                    <li key={j} className="text-sm text-muted leading-relaxed">
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
               </motion.div>
             </div>
           );

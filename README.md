@@ -1,16 +1,18 @@
 # swapnil.github.io
 
-Personal website built with Next.js 16 (App Router) featuring a 3D interactive hero section, travel globe, project portfolio, and contact form.
+Personal website built with Next.js 16 (App Router) featuring an interactive particle field hero, travel globe with 17 trips, resume page, and contact form.
 
 ## Tech Stack
 
 - **Framework:** Next.js 16 (App Router)
 - **Language:** TypeScript
-- **Styling:** Tailwind CSS v4
+- **Styling:** Tailwind CSS v4 (dark mode only)
 - **3D Graphics:** React Three Fiber + Three.js
 - **Animation:** Framer Motion
 - **Content:** MDX (via next-mdx-remote)
-- **Contact:** Google Forms (embedded)
+- **Auth:** Supabase (invite-only)
+- **Database:** Supabase Postgres (family tree)
+- **Contact:** Custom form → Google Forms
 - **Deployment:** Vercel
 
 ## Getting Started
@@ -45,15 +47,18 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 src/
   app/          — Pages and API routes (Next.js App Router)
   components/   — React components organized by feature
-  hooks/        — Custom React hooks
-  lib/          — Utility functions (MDX processing)
+  lib/          — Utility functions (MDX processing, Supabase clients)
+  types/        — TypeScript types
 content/
   travel/       — Travel trip MDX files and _meta.ts index
   projects.ts   — Project portfolio data
-  now.ts        — "Currently" / "Now" section data
+  resume.ts     — Work experience, skills, and education data
+  now.ts        — "Currently" section data
 public/
   images/       — Static images (travel photos, etc.)
-  models/       — 3D model assets (earth texture, etc.)
+  models/       — 3D assets (earth texture)
+middleware.ts   — Supabase session refresh + route protection
+supabase-schema.sql — Database schema for auth + family tree
 ```
 
 ## Content Management
@@ -66,11 +71,15 @@ public/
 
 ### Add a new project
 
-Edit `content/projects.ts` and add a new entry to the projects array with the project title, description, tech stack, links, and image.
+Edit `content/projects.ts` and add a new entry to the projects array.
 
 ### Update the "Currently" section
 
-Edit `content/now.ts` to change what appears in the "Now" / "Currently" section of the site.
+Edit `content/now.ts` to change what appears in the "Currently" section on the home page.
+
+### Update resume / work experience
+
+Edit `content/resume.ts` to update experiences, skills, or education.
 
 ## Environment Variables
 
@@ -78,8 +87,8 @@ Copy `.env.local.example` to `.env.local` and fill in the values:
 
 | Variable | Description |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (Phase 2 -- not yet used). |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous/public key (Phase 2 -- not yet used). |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (required for auth + family tree). |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous/public key. |
 
 ## Development Commands
 
@@ -92,20 +101,13 @@ Copy `.env.local.example` to `.env.local` and fill in the values:
 
 ## Deployment
 
-This site is designed for deployment on [Vercel](https://vercel.com):
+Deployed on [Vercel](https://vercel.com) at [swapnil-website.vercel.app](https://swapnil-website.vercel.app):
 
-1. Connect your GitHub repository in the Vercel dashboard.
-2. Vercel will auto-detect Next.js and configure the build.
-3. Add environment variables (if needed) in the Vercel project settings under Environment Variables.
-4. Pushes to the main branch will trigger automatic deployments.
+1. GitHub repo is connected to Vercel.
+2. Pushes to `main` trigger automatic deployments.
+3. Environment variables are set in Vercel project settings.
 
-## TODOs / Customization
+## TODOs
 
-Before going live, complete these manual setup items:
-
-- [ ] Replace placeholder content in `content/projects.ts`, `content/now.ts`, and `content/travel/` MDX files
-- [ ] Add your `resume.pdf` to `public/`
-- [ ] Add travel photos to `public/images/travel/`
-- [ ] Update social links in the Footer component (GitHub, LinkedIn, Instagram URLs)
-- [ ] Create a Google Form for contact and update the embed URL in `src/app/contact/page.tsx`
-- [ ] **Phase 2:** Set up Supabase for auth and family tree features (not yet implemented)
+- [ ] Add travel photos to `public/images/travel/{slug}/`
+- [ ] Personalize placeholder trip descriptions in MDX files
