@@ -31,11 +31,10 @@ export default function ContactPage() {
     setLoading(true);
 
     const formData = new URLSearchParams();
-    formData.append('emailAddress', email);
     formData.append(ENTRY_IDS.name, name);
     formData.append(ENTRY_IDS.phone, phone);
     formData.append(ENTRY_IDS.reason, reason);
-    formData.append(ENTRY_IDS.message, message);
+    formData.append(ENTRY_IDS.message, `Email: ${email}\n\n${message}`);
 
     fetch(GOOGLE_FORM_ACTION, {
       method: 'POST',
