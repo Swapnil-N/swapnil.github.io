@@ -19,8 +19,8 @@ export default function AboutPage() {
           Forward Deployed Engineer building AI-powered solutions. Previously at Palantir, Amazon, Bank of America, and Bloomberg.
         </p>
 
-        {/* Resume download at top */}
-        <div className="mb-16">
+        {/* Resume download + section nav */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-12">
           <a
             href="/Swapnil_Napuri_Resume.pdf"
             download
@@ -33,16 +33,22 @@ export default function AboutPage() {
             </svg>
             Download Resume
           </a>
+          <nav className="flex flex-wrap gap-3 text-sm">
+            <a href="#experience" className="text-muted hover:text-primary transition-colors">Experience ↓</a>
+            <a href="#skills" className="text-muted hover:text-primary transition-colors">Skills ↓</a>
+            <a href="#education" className="text-muted hover:text-primary transition-colors">Education ↓</a>
+            <a href="#projects" className="text-muted hover:text-primary transition-colors">Projects ↓</a>
+          </nav>
         </div>
 
         {/* Experience Timeline */}
-        <section className="mb-20">
+        <section id="experience" className="mb-20 scroll-mt-20">
           <h2 className="font-heading text-2xl md:text-3xl font-bold mb-10">Experience</h2>
           <ExperienceTimeline />
         </section>
 
         {/* Skills */}
-        <section className="mb-20">
+        <section id="skills" className="mb-20 scroll-mt-20">
           <h2 className="font-heading text-2xl md:text-3xl font-bold mb-10">
             Skills &amp; Tech Stack
           </h2>
@@ -50,7 +56,7 @@ export default function AboutPage() {
         </section>
 
         {/* Education */}
-        <section className="mb-20">
+        <section id="education" className="mb-20 scroll-mt-20">
           <h2 className="font-heading text-2xl md:text-3xl font-bold mb-10">Education</h2>
           <div className="space-y-6">
             {education.map((edu, i) => (
@@ -70,7 +76,7 @@ export default function AboutPage() {
         </section>
 
         {/* Projects */}
-        <section className="mb-20">
+        <section id="projects" className="mb-20 scroll-mt-20">
           <h2 className="font-heading text-2xl md:text-3xl font-bold mb-10">Projects</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {projects.map((project) => (
