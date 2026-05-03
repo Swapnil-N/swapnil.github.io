@@ -22,45 +22,40 @@ export default function Home() {
         <AnimatedText />
 
         {/* CTA buttons in hero */}
-        <div className="absolute inset-0 z-10 flex items-end justify-center pb-32 pointer-events-none">
+        <div className="absolute inset-0 z-10 flex items-end justify-center pb-24 pointer-events-none">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1, duration: 0.6 }}
-            className="flex flex-col sm:flex-row gap-4 pointer-events-auto"
+            className="flex flex-col items-center gap-6 pointer-events-auto"
           >
-            <Link href="/about" className="rounded-xl bg-primary text-white font-medium py-3 px-8 hover:opacity-90 transition-opacity text-center">
-              View my resume
-            </Link>
-            <Link href="/travel" className="rounded-xl border border-border text-foreground font-medium py-3 px-8 hover:border-primary hover:text-primary transition-colors text-center">
-              See my travels
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link href="/about" className="rounded-xl bg-primary text-white font-medium py-3 px-8 hover:opacity-90 transition-opacity text-center">
+                View my resume
+              </Link>
+              <Link href="/travel" className="rounded-xl border border-border text-foreground font-medium py-3 px-8 hover:border-primary hover:text-primary transition-colors text-center">
+                See my travels
+              </Link>
+            </div>
+
+            {/* Scroll indicator */}
+            <motion.svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-muted pointer-events-none"
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <path d="M6 9l6 6 6-6" />
+            </motion.svg>
           </motion.div>
         </div>
-
-        {/* Scroll indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5, duration: 0.6 }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10"
-        >
-          <motion.svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-muted"
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <path d="M6 9l6 6 6-6" />
-          </motion.svg>
-        </motion.div>
       </section>
 
       {/* Currently section */}
