@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageTransition from '@/components/layout/PageTransition';
 
@@ -9,20 +9,16 @@ const GOOGLE_FORM_ACTION =
 
 const ENTRY_IDS = {
   email: 'entry.1832407109',
-  name: 'entry.1634930124',
   phone: 'entry.420911470',
+  name: 'entry.1634930124',
   reason: 'entry.2009561971',
   message: 'entry.1427964070',
 } as const;
 
 export default function ContactPage() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [reason, setReason] = useState('');
-  const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const inputClass =
     'w-full rounded-xl bg-transparent border border-border px-4 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors';
@@ -31,28 +27,26 @@ export default function ContactPage() {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new URLSearchParams();
-    formData.append(ENTRY_IDS.email, email);
-    formData.append(ENTRY_IDS.name, name);
-    formData.append(ENTRY_IDS.phone, phone);
-    formData.append(ENTRY_IDS.reason, reason);
-    formData.append(ENTRY_IDS.message, message);
+    // Submit via hidden iframe to avoid CORS issues entirely
+    const iframe = document.createElement('iframe');
+    iframe.name = 'hidden-form-target';
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
 
-    fetch(GOOGLE_FORM_ACTION, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
-    })
-      .then(() => {
-        setSubmitted(true);
-      })
-      .catch(() => {
-        setSubmitted(true);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    if (formRef.current) {
+      formRef.current.target = 'hidden-form-target';
+      formRef.current.action = GOOGLE_FORM_ACTION;
+      formRef.current.method = 'POST';
+      formRef.current.submit();
+    }
+
+    // Google Forms doesn't send back a cross-origin response we can read,
+    // so we wait a moment then show success
+    setTimeout(() => {
+      setLoading(false);
+      setSubmitted(true);
+      iframe.remove();
+    }, 1500);
   }
 
   return (
@@ -88,17 +82,16 @@ export default function ContactPage() {
                 Have a question or want to connect? Drop me a message.
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium mb-2">
                     Name (First and Last)
                   </label>
                   <input
                     id="name"
+                    name={ENTRY_IDS.name}
                     type="text"
                     required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
                     className={inputClass}
                     placeholder="John Doe"
                   />
@@ -110,10 +103,9 @@ export default function ContactPage() {
                   </label>
                   <input
                     id="email"
+                    name={ENTRY_IDS.email}
                     type="email"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                     className={inputClass}
                     placeholder="you@example.com"
                   />
@@ -125,10 +117,9 @@ export default function ContactPage() {
                   </label>
                   <input
                     id="phone"
+                    name={ENTRY_IDS.phone}
                     type="tel"
                     required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
                     className={inputClass}
                     placeholder="(555) 123-4567"
                   />
@@ -140,10 +131,9 @@ export default function ContactPage() {
                   </label>
                   <input
                     id="reason"
+                    name={ENTRY_IDS.reason}
                     type="text"
                     required
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
                     className={inputClass}
                     placeholder="Networking, collaboration, etc."
                   />
@@ -155,10 +145,9 @@ export default function ContactPage() {
                   </label>
                   <textarea
                     id="message"
+                    name={ENTRY_IDS.message}
                     required
                     rows={5}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
                     className={inputClass + ' resize-none'}
                     placeholder="Your message..."
                   />
