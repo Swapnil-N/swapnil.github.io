@@ -8,6 +8,7 @@ const GOOGLE_FORM_ACTION =
   'https://docs.google.com/forms/d/e/1FAIpQLSfqWOc9zWGOBXC_U4fqknmhaYu4OAD2P83KS0M6KvrdclQHMw/formResponse';
 
 const ENTRY_IDS = {
+  email: 'entry.1832407109',
   name: 'entry.1634930124',
   phone: 'entry.420911470',
   reason: 'entry.2009561971',
@@ -31,10 +32,11 @@ export default function ContactPage() {
     setLoading(true);
 
     const formData = new URLSearchParams();
+    formData.append(ENTRY_IDS.email, email);
     formData.append(ENTRY_IDS.name, name);
     formData.append(ENTRY_IDS.phone, phone);
     formData.append(ENTRY_IDS.reason, reason);
-    formData.append(ENTRY_IDS.message, `Email: ${email}\n\n${message}`);
+    formData.append(ENTRY_IDS.message, message);
 
     fetch(GOOGLE_FORM_ACTION, {
       method: 'POST',
