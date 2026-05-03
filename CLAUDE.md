@@ -10,11 +10,10 @@ Currently on `main` branch.
 ## Tech Stack
 
 - **Next.js 16** (App Router, TypeScript)
-- **Tailwind CSS v4** (uses `@theme inline` and `@custom-variant`, NOT v3 config patterns)
+- **Tailwind CSS v4** (uses `@theme inline`, NOT v3 config patterns)
 - **React Three Fiber** + `@react-three/drei` (for particle field hero and travel globe)
 - **Framer Motion** (animations)
 - **MDX** via `gray-matter` + `next-mdx-remote/rsc` (travel trip content)
-- **next-themes** with `attribute="data-theme"` (dark mode default)
 - **Self-hosted fonts** via `next/font/local` (Space Grotesk for headings, DM Sans for body)
 - **Supabase** (`@supabase/supabase-js` + `@supabase/ssr`) for auth and family tree data
 - **ReactFlow** + `dagre` (family tree visualization)
@@ -23,12 +22,12 @@ Currently on `main` branch.
 ## Key Architecture Decisions
 
 - **Tailwind v4**: No `tailwind.config.ts`. Colors are defined as CSS variables in `:root` of `globals.css`, then mapped to Tailwind tokens via the `@theme inline` block. Use `text-primary`, `bg-surface`, `text-foreground`, `text-muted`, etc. NEVER use `text-[var(--color-*)]` arbitrary value syntax.
-- **Dark/light mode**: Uses `data-theme` attribute (not class-based), so the `dark:` variant requires the `@custom-variant` declaration in `globals.css`. Dark mode is the default theme.
+- **Dark mode only**: No light mode. No `next-themes`. No `data-theme` attribute. The site is always dark.
 - **3D components**: All React Three Fiber components live in `src/components/three/` and MUST be dynamically imported with `ssr: false`.
 - **Content**: Public content lives in the `content/` directory (travel MDX files, `projects.ts`, `now.ts`, `resume.ts`). Use the `@content/*` import alias.
 - **React 19 strict lint rules**: No `Math.random()` in `useMemo` or during render. No `setState` in `useEffect`. No refs during render. Use deterministic alternatives or module-scope generation.
 - **Travel trips**: Add an MDX file to `content/travel/` AND update `content/travel/_meta.ts` (the source of truth for globe pins and ordering).
-- **Contact page**: Uses a Google Form embed (no backend API route).
+- **Contact page**: Custom styled form that submits to Google Forms via hidden iframe (no backend API route).
 - **Auth**: Supabase Auth with invite-only model. Middleware protects `/family-tree`. Login at `/login`.
 - **Family tree**: Data stored in Supabase (NOT in repo — repo is public). ReactFlow + dagre for visualization. Only accessible to authenticated users.
 
@@ -70,14 +69,8 @@ supabase-schema.sql — Database schema (run in Supabase SQL editor)
 
 ## TODOs
 
-- Replace Google Form URL in `src/app/contact/page.tsx`
-- Add `resume.pdf` to `public/`
-- Update social links in Footer (GitHub, LinkedIn, Instagram URLs are placeholders)
 - Add travel photos to `public/images/travel/{slug}/`
-- Add trip pages for Florida Keys/Miami and Spain
 - Personalize placeholder trip descriptions in MDX files
-- Set up Supabase project and run `supabase-schema.sql`
-- Set first user as admin in Supabase `profiles` table (`role = 'admin'`)
 
 ## Common Pitfalls
 
