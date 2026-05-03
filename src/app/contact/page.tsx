@@ -53,6 +53,7 @@ export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const formRef = useRef<HTMLFormElement>(null);
 
   const inputClass =
@@ -61,26 +62,52 @@ export default function ContactPage() {
   const errorInputClass =
     'w-full rounded-xl bg-transparent border border-red-500 px-4 py-3 text-foreground focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 transition-colors';
 
+  function validateField(field: string, value?: string) {
+    const newErrors = { ...errors };
+
+    if (field === 'email') {
+      const val = value ?? email;
+      if (val && !EMAIL_REGEX.test(val)) {
+        newErrors.email = 'Please enter a valid email address.';
+      } else {
+        delete newErrors.email;
+      }
+    }
+
+    if (field === 'phone') {
+      const val = value ?? phone;
+      const digits = getPhoneDigits(val);
+      if (countryCode === '+1' && digits.length > 0 && digits.length !== 10) {
+        newErrors.phone = 'US phone numbers must be 10 digits.';
+      } else if (digits.length > 0 && digits.length < 6) {
+        newErrors.phone = 'Please enter a valid phone number.';
+      } else {
+        delete newErrors.phone;
+      }
+    }
+
+    setErrors(newErrors);
+  }
+
   function handlePhoneChange(e: ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
-    if (countryCode === '+1') {
-      setPhone(formatUSPhone(raw));
-    } else {
-      setPhone(raw.replace(/[^\d\s-]/g, ''));
-    }
-    if (errors.phone) {
-      setErrors((prev) => ({ ...prev, phone: '' }));
-    }
+    const formatted = countryCode === '+1' ? formatUSPhone(raw) : raw.replace(/[^\d\s-]/g, '');
+    setPhone(formatted);
+    if (touched.phone) validateField('phone', formatted);
   }
 
   function handleEmailChange(e: ChangeEvent<HTMLInputElement>) {
     setEmail(e.target.value);
-    if (errors.email) {
-      setErrors((prev) => ({ ...prev, email: '' }));
-    }
+    if (touched.email) validateField('email', e.target.value);
+  }
+
+  function handleBlur(field: string) {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    validateField(field);
   }
 
   function validate(): boolean {
+    setTouched({ email: true, phone: true });
     const newErrors: Record<string, string> = {};
 
     if (!EMAIL_REGEX.test(email)) {
@@ -185,6 +212,7 @@ export default function ContactPage() {
                     required
                     value={email}
                     onChange={handleEmailChange}
+                    onBlur={() => handleBlur('email')}
                     className={errors.email ? errorInputClass : inputClass}
                     placeholder="you@example.com"
                   />
@@ -204,7 +232,7 @@ export default function ContactPage() {
                         setCountryCode(e.target.value);
                         setPhone('');
                       }}
-                      className="rounded-xl bg-transparent border border-border px-3 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors text-sm w-28 shrink-0"
+                      className="rounded-xl bg-transparent border border-border px-2 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors text-sm w-20 shrink-0 appearance-none"
                     >
                       {COUNTRY_CODES.map((cc) => (
                         <option key={cc.code} value={cc.code} className="bg-surface">
@@ -218,6 +246,7 @@ export default function ContactPage() {
                       required
                       value={phone}
                       onChange={handlePhoneChange}
+                      onBlur={() => handleBlur('phone')}
                       className={errors.phone ? errorInputClass : inputClass}
                       placeholder={countryCode === '+1' ? '555-123-4567' : 'Phone number'}
                     />
