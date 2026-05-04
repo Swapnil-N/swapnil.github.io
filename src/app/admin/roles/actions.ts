@@ -7,7 +7,7 @@ import { logAudit } from '@/lib/auth/audit';
 import type { Role } from '@/types/admin';
 
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
-type RoleInput = Pick<Role, 'name' | 'description' | 'can_manage_users' | 'can_manage_roles' | 'can_invite' | 'can_edit_people' | 'can_edit_relationships' | 'can_view_family_tree' | 'can_view_audit_log'>;
+type RoleInput = Pick<Role, 'name' | 'description' | 'can_manage_users' | 'can_manage_roles' | 'can_invite' | 'can_edit_family_tree' | 'can_view_family_tree' | 'can_view_audit_log'>;
 
 export async function createRole(input: RoleInput): Promise<Result<{ id: string }>> {
   await requirePermission('manage_roles');

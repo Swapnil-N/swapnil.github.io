@@ -25,9 +25,7 @@ export default async function FamilyTreePage() {
   const people = (peopleData ?? []) as Person[];
   const relationships = (relData ?? []) as Relationship[];
 
-  const canEditPeople = auth.role.can_edit_people;
-  const canEditRelationships = auth.role.can_edit_relationships;
-  const showManage = canEditPeople || canEditRelationships;
+  const canEdit = auth.role.can_edit_family_tree;
 
   return (
     <PageTransition>
@@ -45,13 +43,8 @@ export default async function FamilyTreePage() {
           <FamilyTreeView people={people} relationships={relationships} />
         </div>
 
-        {showManage && (
-          <ManagePanel
-            people={people}
-            relationships={relationships}
-            canEditPeople={canEditPeople}
-            canEditRelationships={canEditRelationships}
-          />
+        {canEdit && (
+          <ManagePanel people={people} relationships={relationships} />
         )}
       </div>
     </PageTransition>

@@ -32,7 +32,7 @@ function summarizePerson(input: Partial<PersonInput>): Record<string, unknown> {
 }
 
 export async function createPerson(input: PersonInput): Promise<Result<{ id: string }>> {
-  await requirePermission('edit_people');
+  await requirePermission('edit_family_tree');
   if (!input.first_name?.trim()) return { ok: false, error: 'First name is required' };
   const supabase = await createClient();
   const payload = pickPersonFields(input);
@@ -44,7 +44,7 @@ export async function createPerson(input: PersonInput): Promise<Result<{ id: str
 }
 
 export async function updatePerson(id: string, input: Partial<PersonInput>): Promise<Result> {
-  await requirePermission('edit_people');
+  await requirePermission('edit_family_tree');
   const supabase = await createClient();
   const payload = pickPersonFields(input);
   const { data, error } = await supabase
@@ -60,7 +60,7 @@ export async function updatePerson(id: string, input: Partial<PersonInput>): Pro
 }
 
 export async function deletePerson(id: string): Promise<Result> {
-  await requirePermission('edit_people');
+  await requirePermission('edit_family_tree');
   const supabase = await createClient();
   const { data, error } = await supabase.from('people').delete().eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
@@ -74,7 +74,7 @@ type RelationshipInput = Omit<Relationship, 'id'>;
 const RELATIONSHIP_TYPES: Relationship['relationship_type'][] = ['parent', 'child', 'spouse', 'sibling'];
 
 export async function createRelationship(input: RelationshipInput): Promise<Result> {
-  await requirePermission('edit_relationships');
+  await requirePermission('edit_family_tree');
   if (!input.person_id || !input.related_person_id) {
     return { ok: false, error: 'Both people are required' };
   }
@@ -98,7 +98,7 @@ export async function createRelationship(input: RelationshipInput): Promise<Resu
 }
 
 export async function deleteRelationship(id: string): Promise<Result> {
-  await requirePermission('edit_relationships');
+  await requirePermission('edit_family_tree');
   const supabase = await createClient();
   const { data, error } = await supabase.from('relationships').delete().eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };

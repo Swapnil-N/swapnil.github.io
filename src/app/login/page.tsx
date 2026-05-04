@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
 
   const urlError = searchParams.get('error');
@@ -25,42 +26,54 @@ export default function LoginPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
 
     const supabase = createClient();
 
-    if (mode === 'signin') {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (signInError) {
-        setError(signInError.message);
-        setLoading(false);
+    try {
+      if (mode === 'signin') {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          setError(signInError.message);
+          return;
+        }
+        router.refresh();
+        router.push(redirectTo);
         return;
       }
-    } else {
-      const { error: signUpError } = await supabase.auth.signUp({
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { display_name: displayName },
-        },
+        options: { data: { display_name: displayName } },
       });
       if (signUpError) {
         setError(signUpError.message);
-        setLoading(false);
         return;
       }
-    }
 
-    router.refresh();
-    router.push(redirectTo);
+      // Two paths back from signUp:
+      // 1. Email confirmation required → session is null, user must click link.
+      // 2. Auto-confirm enabled → session is set immediately, sign them in.
+      if (data.session) {
+        router.refresh();
+        router.push(redirectTo);
+        return;
+      }
+
+      setInfo(`Account created. Check ${email} for a confirmation link, then sign in.`);
+      setMode('signin');
+      setPassword('');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function toggleMode() {
     setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
     setError('');
+    setInfo('');
   }
 
   return (
@@ -77,7 +90,13 @@ export default function LoginPage() {
 
         {(error || urlError) && (
           <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-400 text-sm">
-            {error || (urlError === 'auth_failed' ? 'Authentication failed. Please try again.' : urlError)}
+            {error || (urlError === 'auth_failed' ? 'Authentication failed. Please try again.' : urlError === 'disabled' ? 'Your account has been disabled. Contact an admin.' : urlError)}
+          </div>
+        )}
+
+        {info && (
+          <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-emerald-300 text-sm">
+            {info}
           </div>
         )}
 
@@ -134,10 +153,8 @@ export default function LoginPage() {
             className="w-full rounded-xl bg-primary text-white font-medium py-3 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading
-              ? 'Loading...'
-              : mode === 'signin'
-                ? 'Sign In'
-                : 'Create Account'}
+              ? mode === 'signin' ? 'Signing in…' : 'Creating account…'
+              : mode === 'signin' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
 

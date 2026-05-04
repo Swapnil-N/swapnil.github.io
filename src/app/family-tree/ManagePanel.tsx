@@ -8,15 +8,12 @@ import type { Person, Relationship } from '@/types/family';
 interface Props {
   people: Person[];
   relationships: Relationship[];
-  canEditPeople: boolean;
-  canEditRelationships: boolean;
 }
 
 type Tab = 'people' | 'relationships';
 
-export default function ManagePanel({ people, relationships, canEditPeople, canEditRelationships }: Props) {
-  const initial: Tab = canEditPeople ? 'people' : 'relationships';
-  const [tab, setTab] = useState<Tab>(initial);
+export default function ManagePanel({ people, relationships }: Props) {
+  const [tab, setTab] = useState<Tab>('people');
 
   return (
     <section className="border-t border-border bg-surface">
@@ -27,16 +24,12 @@ export default function ManagePanel({ people, relationships, canEditPeople, canE
         </div>
 
         <div className="mb-4 flex gap-1 border-b border-border">
-          {canEditPeople && (
-            <TabButton active={tab === 'people'} onClick={() => setTab('people')}>People</TabButton>
-          )}
-          {canEditRelationships && (
-            <TabButton active={tab === 'relationships'} onClick={() => setTab('relationships')}>Relationships</TabButton>
-          )}
+          <TabButton active={tab === 'people'} onClick={() => setTab('people')}>People</TabButton>
+          <TabButton active={tab === 'relationships'} onClick={() => setTab('relationships')}>Relationships</TabButton>
         </div>
 
-        {tab === 'people' && canEditPeople && <PeopleTable people={people} />}
-        {tab === 'relationships' && canEditRelationships && (
+        {tab === 'people' && <PeopleTable people={people} />}
+        {tab === 'relationships' && (
           <RelationshipsTable relationships={relationships} people={people} />
         )}
       </div>

@@ -17,17 +17,16 @@ create table if not exists public.roles (
   can_manage_users boolean not null default false,
   can_manage_roles boolean not null default false,
   can_invite boolean not null default false,
-  can_edit_people boolean not null default false,
-  can_edit_relationships boolean not null default false,
+  can_edit_family_tree boolean not null default false,
   can_view_family_tree boolean not null default true,
   can_view_audit_log boolean not null default false,
   created_at timestamptz default now()
 );
 
-insert into public.roles (name, description, is_system, can_manage_users, can_manage_roles, can_invite, can_edit_people, can_edit_relationships, can_view_family_tree, can_view_audit_log)
+insert into public.roles (name, description, is_system, can_manage_users, can_manage_roles, can_invite, can_edit_family_tree, can_view_family_tree, can_view_audit_log)
 values
-  ('admin', 'Full administrative access', true, true, true, true, true, true, true, true),
-  ('family_member', 'Can view family tree only', true, false, false, false, false, false, true, false)
+  ('admin', 'Full administrative access', true, true, true, true, true, true, true),
+  ('family_member', 'Can view family tree only', true, false, false, false, false, true, false)
 on conflict (name) do nothing;
 
 alter table public.roles enable row level security;
@@ -129,8 +128,7 @@ create or replace function public.has_permission(perm text) returns boolean as $
         when 'manage_users'         then r.can_manage_users
         when 'manage_roles'         then r.can_manage_roles
         when 'invite'               then r.can_invite
-        when 'edit_people'          then r.can_edit_people
-        when 'edit_relationships'   then r.can_edit_relationships
+        when 'edit_family_tree'     then r.can_edit_family_tree
         when 'view_family_tree'     then r.can_view_family_tree
         when 'view_audit_log'       then r.can_view_audit_log
         else false
@@ -285,21 +283,21 @@ create policy "invitations_delete_admin" on public.invitations for delete using 
 drop policy if exists "people_select_authed" on public.people;
 create policy "people_select_authed" on public.people for select using ((select auth.uid()) is not null);
 drop policy if exists "people_insert_admin" on public.people;
-create policy "people_insert_admin" on public.people for insert with check (public.has_permission('edit_people'));
+create policy "people_insert_admin" on public.people for insert with check (public.has_permission('edit_family_tree'));
 drop policy if exists "people_update_admin" on public.people;
-create policy "people_update_admin" on public.people for update using (public.has_permission('edit_people')) with check (public.has_permission('edit_people'));
+create policy "people_update_admin" on public.people for update using (public.has_permission('edit_family_tree')) with check (public.has_permission('edit_family_tree'));
 drop policy if exists "people_delete_admin" on public.people;
-create policy "people_delete_admin" on public.people for delete using (public.has_permission('edit_people'));
+create policy "people_delete_admin" on public.people for delete using (public.has_permission('edit_family_tree'));
 
 -- relationships
 drop policy if exists "relationships_select_authed" on public.relationships;
 create policy "relationships_select_authed" on public.relationships for select using ((select auth.uid()) is not null);
 drop policy if exists "relationships_insert_admin" on public.relationships;
-create policy "relationships_insert_admin" on public.relationships for insert with check (public.has_permission('edit_relationships'));
+create policy "relationships_insert_admin" on public.relationships for insert with check (public.has_permission('edit_family_tree'));
 drop policy if exists "relationships_update_admin" on public.relationships;
-create policy "relationships_update_admin" on public.relationships for update using (public.has_permission('edit_relationships')) with check (public.has_permission('edit_relationships'));
+create policy "relationships_update_admin" on public.relationships for update using (public.has_permission('edit_family_tree')) with check (public.has_permission('edit_family_tree'));
 drop policy if exists "relationships_delete_admin" on public.relationships;
-create policy "relationships_delete_admin" on public.relationships for delete using (public.has_permission('edit_relationships'));
+create policy "relationships_delete_admin" on public.relationships for delete using (public.has_permission('edit_family_tree'));
 
 -- roles
 drop policy if exists "roles_select_authed" on public.roles;
