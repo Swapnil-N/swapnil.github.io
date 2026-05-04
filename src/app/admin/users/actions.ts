@@ -1,12 +1,20 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
 import { requirePermission } from '@/lib/auth/permissions';
 import { logAudit } from '@/lib/auth/audit';
 
 type Result = { ok: true } | { ok: false; error: string };
+
+async function siteOrigin(): Promise<string> {
+  const h = await headers();
+  const proto = h.get('x-forwarded-proto') ?? 'https';
+  const host = h.get('host') ?? '';
+  return `${proto}://${host}`;
+}
 
 export async function updateUserRole(userId: string, roleId: string): Promise<Result> {
   const { user } = await requirePermission('manage_users');
@@ -43,6 +51,26 @@ export async function setUserDisabled(userId: string, disabled: boolean): Promis
   await logAudit({ action: disabled ? 'profile.disabled' : 'profile.enabled', targetType: 'profile', targetId: userId });
   revalidatePath('/admin/users');
   revalidatePath('/admin');
+  return { ok: true };
+}
+
+export async function sendPasswordReset(userId: string): Promise<Result> {
+  await requirePermission('manage_users');
+  const supabase = await createClient();
+  const { data: profile, error: lookupError } = await supabase
+    .from('profiles')
+    .select('email')
+    .eq('id', userId)
+    .single();
+  if (lookupError || !profile?.email) {
+    return { ok: false, error: 'User not found.' };
+  }
+  const origin = await siteOrigin();
+  const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
+  });
+  if (error) return { ok: false, error: error.message };
+  await logAudit({ action: 'profile.password_reset_sent', targetType: 'profile', targetId: userId });
   return { ok: true };
 }
 

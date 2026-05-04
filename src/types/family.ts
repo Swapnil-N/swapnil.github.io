@@ -21,7 +21,6 @@ export interface Profile {
   id: string;
   email: string;
   display_name: string | null;
-  avatar_url: string | null;
   role_id: string;
   disabled: boolean;
   invited_by: string | null;

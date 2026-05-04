@@ -8,7 +8,7 @@ import Badge from '@/components/admin/ui/Badge';
 import Alert from '@/components/admin/ui/Alert';
 import ConfirmDialog from '@/components/admin/ui/ConfirmDialog';
 import { formatTimestamp } from '@/lib/format-date';
-import { updateUserRole, setUserDisabled, deleteUser } from './actions';
+import { updateUserRole, setUserDisabled, deleteUser, sendPasswordReset } from './actions';
 import type { Role } from '@/types/admin';
 
 interface UserRow {
@@ -29,13 +29,25 @@ interface UsersTableProps {
 export default function UsersTable({ users, roles, currentUserId }: UsersTableProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<UserRow | null>(null);
 
   function handleRoleChange(userId: string, roleId: string) {
     setError(null);
+    setSuccess(null);
     startTransition(async () => {
       const res = await updateUserRole(userId, roleId);
       if (!res.ok) setError(res.error);
+    });
+  }
+
+  function handleSendReset(user: UserRow) {
+    setError(null);
+    setSuccess(null);
+    startTransition(async () => {
+      const res = await sendPasswordReset(user.id);
+      if (!res.ok) setError(res.error);
+      else setSuccess(`Password reset email sent to ${user.email}.`);
     });
   }
 
@@ -59,6 +71,7 @@ export default function UsersTable({ users, roles, currentUserId }: UsersTablePr
   return (
     <>
       {error && <div className="mb-4"><Alert tone="error">{error}</Alert></div>}
+      {success && <div className="mb-4"><Alert tone="success">{success}</Alert></div>}
       <Table>
         <THead>
           <TR>
@@ -95,7 +108,15 @@ export default function UsersTable({ users, roles, currentUserId }: UsersTablePr
                   {user.disabled ? <Badge tone="danger">Disabled</Badge> : <Badge tone="success">Active</Badge>}
                 </TD>
                 <TD className="text-right whitespace-nowrap">
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center justify-end gap-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleSendReset(user)}
+                      disabled={pending}
+                    >
+                      Reset password
+                    </Button>
                     <Button
                       size="sm"
                       variant="secondary"

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import PageTransition from '@/components/layout/PageTransition';
@@ -157,6 +158,14 @@ export default function LoginPage() {
               : mode === 'signin' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
+
+        {mode === 'signin' && (
+          <p className="mt-4 text-center text-sm">
+            <Link href="/forgot-password" className="text-muted hover:text-primary transition-colors">
+              Forgot password?
+            </Link>
+          </p>
+        )}
 
         <p className="mt-8 text-center text-sm text-muted">
           {mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}{' '}

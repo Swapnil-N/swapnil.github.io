@@ -39,7 +39,6 @@ create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
   email text not null,
   display_name text,
-  avatar_url text,
   role_id uuid not null references public.roles(id),
   disabled boolean not null default false,
   invited_by uuid references public.profiles(id),
