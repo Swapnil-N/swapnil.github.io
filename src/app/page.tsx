@@ -2,6 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import CurrentlySection from '@/components/home/CurrentlySection';
 import AnimatedText from '@/components/ui/AnimatedText';
@@ -14,6 +16,19 @@ const ParticleField = dynamic(() => import('@/components/three/ParticleField'), 
 });
 
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Supabase redirects auth verify failures to the Site URL. Catch them and
+  // route to /login with a useful error code. The same payload also lands in
+  // the URL hash, but the query is sufficient.
+  useEffect(() => {
+    const errorCode = searchParams.get('error_code');
+    if (errorCode) {
+      router.replace(`/login?error=${errorCode}`);
+    }
+  }, [router, searchParams]);
+
   return (
     <div className="min-h-screen">
       {/* Hero section */}

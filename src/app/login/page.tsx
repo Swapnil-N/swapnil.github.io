@@ -91,7 +91,22 @@ export default function LoginPage() {
 
         {(error || urlError) && (
           <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-400 text-sm">
-            {error || (urlError === 'auth_failed' ? 'Authentication failed. Please try again.' : urlError === 'disabled' ? 'Your account has been disabled. Contact an admin.' : urlError)}
+            {error
+              || (urlError === 'auth_failed' && 'Authentication failed. Please try again.')
+              || (urlError === 'disabled' && 'Your account has been disabled. Contact an admin.')
+              || (urlError === 'otp_expired' && (
+                <>
+                  Your reset link expired or was already used.{' '}
+                  <Link href="/forgot-password" className="underline">Request a new one.</Link>
+                </>
+              ))
+              || (urlError === 'access_denied' && (
+                <>
+                  This link is no longer valid.{' '}
+                  <Link href="/forgot-password" className="underline">Request a new reset link.</Link>
+                </>
+              ))
+              || urlError}
           </div>
         )}
 
