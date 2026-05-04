@@ -1,6 +1,6 @@
 # swapnil.github.io
 
-Personal website built with Next.js 16 (App Router) featuring an interactive particle field hero, travel globe with 17 trips, resume page, and contact form.
+Personal website built with Next.js 16 (App Router) featuring an interactive particle field hero, travel globe with 17 trips, resume page, contact form, an invite-only family tree, and an admin dashboard with granular role-based permissions.
 
 ## Tech Stack
 
@@ -89,6 +89,7 @@ Copy `.env.local.example` to `.env.local` and fill in the values:
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (required for auth + family tree). |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous/public key. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only service-role key. Required for the admin dashboard (hard-deleting users, sending invite emails, reading last-sign-in). |
 
 ## Development Commands
 

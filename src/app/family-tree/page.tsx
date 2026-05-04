@@ -1,18 +1,21 @@
-import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { getCurrentUserWithRole } from '@/lib/auth/permissions';
 import FamilyTreeView from '@/components/family-tree/FamilyTreeView';
 import PageTransition from '@/components/layout/PageTransition';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FamilyTreePage() {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const auth = await getCurrentUserWithRole();
+  if (!auth) {
     redirect('/login?redirect=/family-tree');
   }
+  if (!auth.role.can_view_family_tree) {
+    redirect('/');
+  }
 
+  const supabase = await createClient();
   const { data: people } = await supabase.from('people').select('*');
   const { data: relationships } = await supabase.from('relationships').select('*');
 

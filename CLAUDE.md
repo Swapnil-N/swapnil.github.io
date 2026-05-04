@@ -61,11 +61,24 @@ supabase-schema.sql — Database schema (run in Supabase SQL editor)
 
 ## Phase 2 (Built)
 
-- **Auth**: Supabase Auth with invite-only model. Routes: `/login`, `/auth/callback`, `/api/invite`.
+- **Auth**: Supabase Auth with invite-only model. Routes: `/login`, `/auth/callback`.
 - **Family tree**: `/family-tree` — ReactFlow visualization with dagre layout, custom person nodes, detail panel. Data in Supabase `people` + `relationships` tables.
-- **Middleware**: `middleware.ts` protects `/family-tree/*`, redirects unauthenticated to `/login`.
-- **SQL schema**: `supabase-schema.sql` — run in Supabase SQL editor to create tables, RLS policies, and auth trigger.
-- **To activate**: Create a Supabase project, set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local`, run the SQL schema.
+- **Middleware**: `middleware.ts` protects `/family-tree/*`, `/admin/*`, and `/account/*`. Redirects unauthenticated users to `/login` and disabled users to `/login?error=disabled`.
+- **SQL schema**: `supabase-schema.sql` — run in Supabase SQL editor for fresh setups; existing projects use `apply_migration` via the Supabase MCP server.
+- **To activate**: Create a Supabase project, set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`, run the SQL schema.
+
+## Phase 3 (Built): Admin dashboard + auth-aware nav
+
+- **Granular permissions**: `roles` table replaces the hardcoded `role` text column on `profiles`. Each role has 7 boolean permission columns (`can_manage_users`, `can_manage_roles`, `can_invite`, `can_edit_people`, `can_edit_relationships`, `can_view_family_tree`, `can_view_audit_log`). Two seeded `is_system` roles: `admin` (all perms) and `family_member` (view only).
+- **Permission helper**: `public.has_permission(perm text)` — RLS policies and server actions check permissions through this. Folds in the `profiles.disabled` flag (disabled users always return false).
+- **Soft + hard user removal**: `profiles.disabled` flag for reversible disable; `auth.admin.deleteUser()` (service-role) for permanent.
+- **Audit log**: `audit_log` table records every admin mutation (`actor_id` set null on user delete so history survives). Server actions write via `logAudit()`.
+- **Triggers**: `guard_profile_self_update` (column-level guard for self-edits), `prevent_system_role_mutation` (no rename/delete/is_system toggle on system roles), `prevent_self_lockout` (admin can't drop `can_manage_roles` from their own role).
+- **Routes**: `/admin` (stats), `/admin/users`, `/admin/roles`, `/admin/invitations`, `/admin/family/people`, `/admin/family/relationships`, `/admin/audit`, `/account`.
+- **Auth state**: `AuthProvider` (`src/components/auth/AuthProvider.tsx`) holds `{ user, profile, role }` from a server-fetched join. Subscribes to `onAuthStateChange` and calls `router.refresh()` on auth events. Use `useAuth()` in client components.
+- **Server helpers**: `getCurrentUserWithRole()`, `requirePermission()`, `requireAnyPermission()` in `src/lib/auth/permissions.ts`. Pure permission check shared with client code in `permissions.client.ts`.
+- **Service-role client**: `src/lib/supabase/admin.ts` — `createServiceRoleClient()` is server-only (`import 'server-only'`), per-request, throws `MissingServiceRoleKeyError` if env var missing. Used for `deleteUser`, `inviteUserByEmail`, `listUsers`.
+- **UI primitives**: `src/components/admin/ui/` — `Button`, `Input`, `Textarea`, `Select`, `Toggle`, `Table`, `Modal`, `ConfirmDialog`, `Badge`, `EmptyState`. Modals use fixed-position overlays (no portal). All admin/account pages use these — `/login` was intentionally left untouched in Phase 3 to avoid regressing working auth.
 
 ## TODOs
 
@@ -80,3 +93,7 @@ supabase-schema.sql — Database schema (run in Supabase SQL editor)
 - Do NOT use `Math.random()` inside React components — React 19 lint flags it as impure. Generate at module scope.
 - Do NOT use `useEffect(() => setState(...))` — React 19 lint flags it. Use `useSyncExternalStore` or handle in event callbacks.
 - Google Form embed has a `bg-white` wrapper — this is intentional for the iframe.
+- Do NOT import `src/lib/supabase/admin.ts` (the service-role client) from client components — it has `import 'server-only'` at the top and will fail the build.
+- Do NOT delete or rename system roles (`admin`, `family_member`) — guarded by trigger.
+- `profiles.role` text column NO LONGER exists. Use `profiles.role_id` joined to `roles`. The `getCurrentUserWithRole()` helper returns the joined shape.
+- After an admin changes user X's role, X's in-memory `role` context stays stale until they refresh. RLS reads from the DB so data access is correct, but UI affordances may lag for that session.

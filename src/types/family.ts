@@ -1,3 +1,5 @@
+import type { Role } from './admin';
+
 export interface Person {
   id: string;
   first_name: string;
@@ -21,9 +23,12 @@ export interface Profile {
   id: string;
   email: string;
   display_name: string | null;
-  role: 'admin' | 'family_member';
+  avatar_url: string | null;
+  role_id: string;
+  disabled: boolean;
   invited_by: string | null;
   created_at: string;
+  role?: Role;
 }
 
 export interface Invitation {

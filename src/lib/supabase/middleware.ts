@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+const protectedPaths = ['/family-tree', '/admin', '/account'];
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -33,7 +35,6 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const protectedPaths = ['/family-tree'];
   const isProtected = protectedPaths.some(p =>
     request.nextUrl.pathname.startsWith(p),
   );
@@ -43,6 +44,22 @@ export async function updateSession(request: NextRequest) {
     url.pathname = '/login';
     url.searchParams.set('redirect', request.nextUrl.pathname);
     return NextResponse.redirect(url);
+  }
+
+  if (user && isProtected) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('disabled')
+      .eq('id', user.id)
+      .single();
+    if (profile?.disabled) {
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      url.search = '';
+      url.searchParams.set('error', 'disabled');
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

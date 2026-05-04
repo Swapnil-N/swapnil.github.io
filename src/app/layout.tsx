@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import localFont from 'next/font/local';
 import Nav from "@/components/layout/Nav";
 import Footer from "@/components/layout/Footer";
+import { AuthProvider } from "@/components/auth/AuthProvider";
+import { getCurrentUserWithRole } from "@/lib/auth/permissions";
 import "./globals.css";
 
 const spaceGrotesk = localFont({
@@ -35,17 +37,20 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialAuth = await getCurrentUserWithRole();
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${dmSans.variable}`}>
       <body className="min-h-screen flex flex-col bg-surface text-foreground antialiased">
-        <Nav />
-        <main className="pt-16 flex-1">{children}</main>
-        <Footer />
+        <AuthProvider initialAuth={initialAuth}>
+          <Nav />
+          <main className="pt-16 flex-1">{children}</main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );
