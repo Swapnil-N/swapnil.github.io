@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { requireAnyPermission } from '@/lib/auth/permissions';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import PageTransition from '@/components/layout/PageTransition';
+import { ADMIN_PERMISSIONS } from '@/lib/auth/admin-permissions';
 
 export const metadata: Metadata = {
   title: 'Admin · Swapnil Napuri',
@@ -11,14 +12,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { role } = await requireAnyPermission([
-    'manage_users',
-    'manage_roles',
-    'invite',
-    'edit_people',
-    'edit_relationships',
-    'view_audit_log',
-  ]);
+  const { role } = await requireAnyPermission(ADMIN_PERMISSIONS);
 
   return (
     <PageTransition>

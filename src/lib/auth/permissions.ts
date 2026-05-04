@@ -27,7 +27,7 @@ export async function getCurrentUserWithRole(): Promise<AuthBundle | null> {
     .from('profiles')
     .select('*, role:roles(*)')
     .eq('id', user.id)
-    .single<Profile & { role: Role }>();
+    .single<Profile & { role: Role | null }>();
 
   if (error || !data || !data.role) return null;
 

@@ -9,5 +9,9 @@ export function roleHasPermission(role: Role, perm: PermissionKey): boolean {
     case 'edit_relationships':   return role.can_edit_relationships;
     case 'view_family_tree':     return role.can_view_family_tree;
     case 'view_audit_log':       return role.can_view_audit_log;
+    default: {
+      const _exhaustive: never = perm;
+      return _exhaustive;
+    }
   }
 }

@@ -1,5 +1,3 @@
-import type { Role } from './admin';
-
 export interface Person {
   id: string;
   first_name: string;
@@ -28,7 +26,6 @@ export interface Profile {
   disabled: boolean;
   invited_by: string | null;
   created_at: string;
-  role?: Role;
 }
 
 export interface Invitation {

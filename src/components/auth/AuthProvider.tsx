@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
@@ -25,27 +25,25 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ initialAuth, children }: AuthProviderProps) {
-  const [auth, setAuth] = useState<AuthState | null>(initialAuth);
   const router = useRouter();
-
-  useEffect(() => {
-    setAuth(initialAuth);
-  }, [initialAuth]);
+  const currentUserId = initialAuth?.user.id ?? null;
 
   useEffect(() => {
     const supabase = createClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
-        setAuth(null);
-      }
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+    // Only refresh when the identity actually changes. Skipping TOKEN_REFRESHED
+    // and same-user events avoids redundant router.refresh() churn during
+    // background token rotation.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
+      const nextId = session?.user.id ?? null;
+      if (nextId !== currentUserId) {
         router.refresh();
       }
     });
     return () => subscription.unsubscribe();
-  }, [router]);
+  }, [router, currentUserId]);
 
-  return <AuthContext.Provider value={{ auth }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ auth: initialAuth }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthState | null {
