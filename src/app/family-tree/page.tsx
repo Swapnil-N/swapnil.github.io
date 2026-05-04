@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserWithRole } from '@/lib/auth/permissions';
 import FamilyTreeView from '@/components/family-tree/FamilyTreeView';
 import PageTransition from '@/components/layout/PageTransition';
+import ManagePanel from './ManagePanel';
+import type { Person, Relationship } from '@/types/family';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,8 +18,16 @@ export default async function FamilyTreePage() {
   }
 
   const supabase = await createClient();
-  const { data: people } = await supabase.from('people').select('*');
-  const { data: relationships } = await supabase.from('relationships').select('*');
+  const [{ data: peopleData }, { data: relData }] = await Promise.all([
+    supabase.from('people').select('*').order('first_name'),
+    supabase.from('relationships').select('*'),
+  ]);
+  const people = (peopleData ?? []) as Person[];
+  const relationships = (relData ?? []) as Relationship[];
+
+  const canEditPeople = auth.role.can_edit_people;
+  const canEditRelationships = auth.role.can_edit_relationships;
+  const showManage = canEditPeople || canEditRelationships;
 
   return (
     <PageTransition>
@@ -32,11 +42,17 @@ export default async function FamilyTreePage() {
         </div>
 
         <div className="h-[calc(100vh-200px)] w-full">
-          <FamilyTreeView
-            people={people ?? []}
-            relationships={relationships ?? []}
-          />
+          <FamilyTreeView people={people} relationships={relationships} />
         </div>
+
+        {showManage && (
+          <ManagePanel
+            people={people}
+            relationships={relationships}
+            canEditPeople={canEditPeople}
+            canEditRelationships={canEditRelationships}
+          />
+        )}
       </div>
     </PageTransition>
   );

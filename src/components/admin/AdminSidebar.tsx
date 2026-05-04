@@ -17,8 +17,6 @@ const links: SidebarLink[] = [
   { href: '/admin/users', label: 'Users', permission: 'manage_users' },
   { href: '/admin/roles', label: 'Roles', permission: 'manage_roles' },
   { href: '/admin/invitations', label: 'Invitations', permission: 'invite' },
-  { href: '/admin/family/people', label: 'People', permission: 'edit_people' },
-  { href: '/admin/family/relationships', label: 'Relationships', permission: 'edit_relationships' },
   { href: '/admin/audit', label: 'Audit log', permission: 'view_audit_log' },
 ];
 

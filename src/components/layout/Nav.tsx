@@ -24,20 +24,21 @@ export default function Nav() {
   const [signingOut, setSigningOut] = useState(false);
 
   const showAdmin = !!auth?.role && ADMIN_PERMISSIONS.some((p) => roleHasPermission(auth.role, p));
+  const showFamilyTree = !!auth?.role && roleHasPermission(auth.role, 'view_family_tree');
+  const visibleLinks = showFamilyTree
+    ? [...links, { href: '/family-tree', label: 'Family Tree' }]
+    : links;
 
   async function handleSignOut() {
     setSigningOut(true);
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.signOut();
-      if (error) {
-        setSigningOut(false);
-        return;
-      }
+      if (error) return;
       setMobileOpen(false);
       router.replace('/');
       router.refresh();
-    } catch {
+    } finally {
       setSigningOut(false);
     }
   }
@@ -103,7 +104,7 @@ export default function Nav() {
         </Link>
 
         <div className="hidden md:flex items-center gap-6">
-          {links.map((link) => {
+          {visibleLinks.map((link) => {
             const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href);
             return (
               <Link
@@ -158,7 +159,7 @@ export default function Nav() {
             className="md:hidden overflow-hidden border-b border-border bg-surface/95 backdrop-blur-md"
           >
             <div className="flex flex-col px-4 py-4 gap-1">
-              {links.map((link) => {
+              {visibleLinks.map((link) => {
                 const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href);
                 return (
                   <Link
