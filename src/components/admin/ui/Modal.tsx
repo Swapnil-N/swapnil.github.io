@@ -11,14 +11,28 @@ interface ModalProps {
   footer?: ReactNode;
 }
 
+// Tracks which modal instances are currently mounted-and-open. Only the most
+// recently opened one reacts to Escape, so a ConfirmDialog opened on top of a
+// Modal closes itself first instead of dismissing both.
+const openStack: Array<() => void> = [];
+
 export default function Modal({ open, onClose, title, children, footer }: ModalProps) {
   useEffect(() => {
     if (!open) return;
+    openStack.push(onClose);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (openStack[openStack.length - 1] === onClose) {
+        e.stopPropagation();
+        onClose();
+      }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      const idx = openStack.lastIndexOf(onClose);
+      if (idx !== -1) openStack.splice(idx, 1);
+    };
   }, [open, onClose]);
 
   return (

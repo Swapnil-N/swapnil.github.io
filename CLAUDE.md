@@ -73,7 +73,7 @@ supabase-schema.sql — Database schema (run in Supabase SQL editor)
 - **Permission helper**: `public.has_permission(perm text)` — RLS policies and server actions check permissions through this. Folds in the `profiles.disabled` flag (disabled users always return false).
 - **Soft + hard user removal**: `profiles.disabled` flag for reversible disable; `auth.admin.deleteUser()` (service-role) for permanent.
 - **Audit log**: `audit_log` table records every admin mutation (`actor_id` set null on user delete so history survives). Server actions write via `logAudit()`.
-- **Triggers**: `guard_profile_self_update` (column-level guard for self-edits), `prevent_system_role_mutation` (no rename/delete/is_system toggle on system roles), `prevent_self_lockout` (admin can't drop `can_manage_roles` from their own role).
+- **Triggers**: `guard_profile_self_update` (no self role_id or self disabled change — reassignment requires another admin), `prevent_system_role_mutation` (no rename/delete/is_system toggle on system roles), `prevent_self_lockout` (admin can't drop `can_manage_roles` from their own role).
 - **Routes**: `/admin` (stats), `/admin/users`, `/admin/roles`, `/admin/invitations`, `/admin/family/people`, `/admin/family/relationships`, `/admin/audit`, `/account`.
 - **Auth state**: `AuthProvider` (`src/components/auth/AuthProvider.tsx`) holds `{ user, profile, role }` from a server-fetched join. Subscribes to `onAuthStateChange` and calls `router.refresh()` on auth events. Use `useAuth()` in client components.
 - **Server helpers**: `getCurrentUserWithRole()`, `requirePermission()`, `requireAnyPermission()` in `src/lib/auth/permissions.ts`. Pure permission check shared with client code in `permissions.client.ts`.

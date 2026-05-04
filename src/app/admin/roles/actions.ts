@@ -11,6 +11,7 @@ type RoleInput = Pick<Role, 'name' | 'description' | 'can_manage_users' | 'can_m
 
 export async function createRole(input: RoleInput): Promise<Result<{ id: string }>> {
   await requirePermission('manage_roles');
+  if (!input.name?.trim()) return { ok: false, error: 'Name is required' };
   const supabase = await createClient();
   const { data, error } = await supabase.from('roles').insert(input).select('id').single();
   if (error) return { ok: false, error: error.message };
@@ -22,8 +23,9 @@ export async function createRole(input: RoleInput): Promise<Result<{ id: string 
 export async function updateRole(id: string, input: Partial<RoleInput>): Promise<Result> {
   await requirePermission('manage_roles');
   const supabase = await createClient();
-  const { error } = await supabase.from('roles').update(input).eq('id', id);
+  const { data, error } = await supabase.from('roles').update(input).eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: 'Role not found.' };
   await logAudit({ action: 'role.updated', targetType: 'role', targetId: id, metadata: { ...input } });
   revalidatePath('/admin/roles');
   return { ok: true };
@@ -32,8 +34,9 @@ export async function updateRole(id: string, input: Partial<RoleInput>): Promise
 export async function deleteRole(id: string): Promise<Result> {
   await requirePermission('manage_roles');
   const supabase = await createClient();
-  const { error } = await supabase.from('roles').delete().eq('id', id);
+  const { data, error } = await supabase.from('roles').delete().eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: 'Role not found.' };
   await logAudit({ action: 'role.deleted', targetType: 'role', targetId: id });
   revalidatePath('/admin/roles');
   return { ok: true };

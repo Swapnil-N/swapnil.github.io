@@ -8,10 +8,14 @@ import { logAudit } from '@/lib/auth/audit';
 
 type Result = { ok: true } | { ok: false; error: string };
 
+// Pragmatic check; full RFC validation belongs to the email provider.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function sendInvitation(email: string): Promise<Result> {
   const { user } = await requirePermission('invite');
   const trimmed = email.trim().toLowerCase();
   if (!trimmed) return { ok: false, error: 'Email is required' };
+  if (!EMAIL_RE.test(trimmed)) return { ok: false, error: 'Enter a valid email address' };
 
   const supabase = await createClient();
   const { error: insertError } = await supabase
@@ -53,8 +57,9 @@ export async function sendInvitation(email: string): Promise<Result> {
 export async function revokeInvitation(id: string): Promise<Result> {
   await requirePermission('invite');
   const supabase = await createClient();
-  const { error } = await supabase.from('invitations').delete().eq('id', id);
+  const { data, error } = await supabase.from('invitations').delete().eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: 'Invitation not found.' };
   await logAudit({ action: 'invitation.revoked', targetType: 'invitation', targetId: id });
   revalidatePath('/admin/invitations');
   revalidatePath('/admin');

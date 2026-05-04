@@ -182,11 +182,13 @@ create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Block users from elevating their own role or undoing their own disable flag
--- via the self-update RLS policy.
+-- Block any user from changing their own role_id or disabled flag through the
+-- self-update path on profiles. An admin demoting themselves to a less-
+-- privileged role would otherwise lock the org out, so reassignment must come
+-- from a different admin.
 create or replace function public.guard_profile_self_update() returns trigger as $$
 begin
-  if auth.uid() = old.id and not public.has_permission('manage_users') then
+  if (select auth.uid()) = old.id then
     if new.role_id is distinct from old.role_id then
       raise exception 'cannot modify own role_id';
     end if;
@@ -250,44 +252,64 @@ create or replace trigger roles_lockout_guard
   for each row execute function public.prevent_self_lockout();
 
 -- ============================================================================
--- RLS policies
+-- RLS policies (drop-then-create so this file is idempotent)
 -- ============================================================================
 
 -- profiles: combined self+admin select; combined self+admin update (column-level
 -- guard enforced by trigger above).
+drop policy if exists "profiles_select" on public.profiles;
 create policy "profiles_select" on public.profiles
   for select
   using ((select auth.uid()) = id or public.has_permission('manage_users'));
 
+drop policy if exists "profiles_update" on public.profiles;
 create policy "profiles_update" on public.profiles
   for update
   using ((select auth.uid()) = id or public.has_permission('manage_users'))
   with check ((select auth.uid()) = id or public.has_permission('manage_users'));
 
 -- invitations: split by action so SELECT isn't double-evaluated.
+drop policy if exists "invitations_select_admin" on public.invitations;
 create policy "invitations_select_admin" on public.invitations for select using (public.has_permission('invite'));
+drop policy if exists "invitations_insert_admin" on public.invitations;
 create policy "invitations_insert_admin" on public.invitations for insert with check (public.has_permission('invite'));
+drop policy if exists "invitations_update_admin" on public.invitations;
 create policy "invitations_update_admin" on public.invitations for update using (public.has_permission('invite')) with check (public.has_permission('invite'));
+drop policy if exists "invitations_delete_admin" on public.invitations;
 create policy "invitations_delete_admin" on public.invitations for delete using (public.has_permission('invite'));
 
 -- people
+drop policy if exists "people_select_authed" on public.people;
 create policy "people_select_authed" on public.people for select using ((select auth.uid()) is not null);
+drop policy if exists "people_insert_admin" on public.people;
 create policy "people_insert_admin" on public.people for insert with check (public.has_permission('edit_people'));
+drop policy if exists "people_update_admin" on public.people;
 create policy "people_update_admin" on public.people for update using (public.has_permission('edit_people')) with check (public.has_permission('edit_people'));
+drop policy if exists "people_delete_admin" on public.people;
 create policy "people_delete_admin" on public.people for delete using (public.has_permission('edit_people'));
 
 -- relationships
+drop policy if exists "relationships_select_authed" on public.relationships;
 create policy "relationships_select_authed" on public.relationships for select using ((select auth.uid()) is not null);
+drop policy if exists "relationships_insert_admin" on public.relationships;
 create policy "relationships_insert_admin" on public.relationships for insert with check (public.has_permission('edit_relationships'));
+drop policy if exists "relationships_update_admin" on public.relationships;
 create policy "relationships_update_admin" on public.relationships for update using (public.has_permission('edit_relationships')) with check (public.has_permission('edit_relationships'));
+drop policy if exists "relationships_delete_admin" on public.relationships;
 create policy "relationships_delete_admin" on public.relationships for delete using (public.has_permission('edit_relationships'));
 
 -- roles
+drop policy if exists "roles_select_authed" on public.roles;
 create policy "roles_select_authed" on public.roles for select using ((select auth.uid()) is not null);
+drop policy if exists "roles_insert_admin" on public.roles;
 create policy "roles_insert_admin" on public.roles for insert with check (public.has_permission('manage_roles'));
+drop policy if exists "roles_update_admin" on public.roles;
 create policy "roles_update_admin" on public.roles for update using (public.has_permission('manage_roles')) with check (public.has_permission('manage_roles'));
+drop policy if exists "roles_delete_admin" on public.roles;
 create policy "roles_delete_admin" on public.roles for delete using (public.has_permission('manage_roles'));
 
 -- audit_log: admin-only read; insert gated to actor self (server actions write)
+drop policy if exists "audit_log_select_admin" on public.audit_log;
 create policy "audit_log_select_admin" on public.audit_log for select using (public.has_permission('view_audit_log'));
+drop policy if exists "audit_log_insert_self" on public.audit_log;
 create policy "audit_log_insert_self" on public.audit_log for insert with check (actor_id = (select auth.uid()));

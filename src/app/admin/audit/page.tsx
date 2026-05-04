@@ -4,6 +4,7 @@ import { requirePermission } from '@/lib/auth/permissions';
 import { Table, THead, TBody, TR, TH, TD } from '@/components/admin/ui/Table';
 import EmptyState from '@/components/admin/ui/EmptyState';
 import Button from '@/components/admin/ui/Button';
+import { formatTimestamp } from '@/lib/format-date';
 import type { AuditLogEntry } from '@/types/admin';
 
 export const dynamic = 'force-dynamic';
@@ -55,7 +56,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
             <TBody>
               {entries.map((e) => (
                 <TR key={e.id}>
-                  <TD className="text-muted whitespace-nowrap">{new Date(e.created_at).toLocaleString()}</TD>
+                  <TD className="text-muted whitespace-nowrap">{formatTimestamp(e.created_at)}</TD>
                   <TD className="font-mono text-xs text-muted">{e.actor_id ? e.actor_id.slice(0, 8) : '—'}</TD>
                   <TD className="font-mono text-xs">{e.action}</TD>
                   <TD className="text-muted">{e.target_type ?? '—'}</TD>
@@ -69,12 +70,20 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
           <div className="mt-4 flex items-center justify-between text-sm">
             <span className="text-muted">Page {page} of {totalPages} · {total} entries</span>
             <div className="flex gap-2">
-              <Link href={`/admin/audit?page=${Math.max(1, page - 1)}`} aria-disabled={page === 1}>
-                <Button size="sm" variant="secondary" disabled={page === 1}>← Previous</Button>
-              </Link>
-              <Link href={`/admin/audit?page=${Math.min(totalPages, page + 1)}`} aria-disabled={page >= totalPages}>
-                <Button size="sm" variant="secondary" disabled={page >= totalPages}>Next →</Button>
-              </Link>
+              {page > 1 ? (
+                <Link href={`/admin/audit?page=${page - 1}`}>
+                  <Button size="sm" variant="secondary">← Previous</Button>
+                </Link>
+              ) : (
+                <Button size="sm" variant="secondary" disabled>← Previous</Button>
+              )}
+              {page < totalPages ? (
+                <Link href={`/admin/audit?page=${page + 1}`}>
+                  <Button size="sm" variant="secondary">Next →</Button>
+                </Link>
+              ) : (
+                <Button size="sm" variant="secondary" disabled>Next →</Button>
+              )}
             </div>
           </div>
         </>

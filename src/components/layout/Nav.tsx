@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { createClient } from '@/lib/supabase/client';
 import { roleHasPermission } from '@/lib/auth/permissions.client';
+import { ADMIN_PERMISSIONS } from '@/lib/auth/admin-permissions';
 
 const links = [
   { href: '/', label: 'Home' },
@@ -22,22 +23,23 @@ export default function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
-  const showAdmin = auth?.role
-    ? roleHasPermission(auth.role, 'manage_users')
-      || roleHasPermission(auth.role, 'manage_roles')
-      || roleHasPermission(auth.role, 'invite')
-      || roleHasPermission(auth.role, 'edit_people')
-      || roleHasPermission(auth.role, 'edit_relationships')
-      || roleHasPermission(auth.role, 'view_audit_log')
-    : false;
+  const showAdmin = !!auth?.role && ADMIN_PERMISSIONS.some((p) => roleHasPermission(auth.role, p));
 
   async function handleSignOut() {
     setSigningOut(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/');
-    router.refresh();
-    setMobileOpen(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        setSigningOut(false);
+        return;
+      }
+      setMobileOpen(false);
+      router.replace('/');
+      router.refresh();
+    } catch {
+      setSigningOut(false);
+    }
   }
 
   function renderAuthControls(closeMenu?: () => void) {

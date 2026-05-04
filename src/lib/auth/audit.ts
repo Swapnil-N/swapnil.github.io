@@ -5,6 +5,9 @@ interface LogAuditArgs {
   action: string;
   targetType?: string;
   targetId?: string | null;
+  // Audit metadata is admin-only readable (RLS), but callers should still
+  // avoid stuffing free-form user content (long bios, etc.) — keep payloads
+  // small and structured so the log stays scannable.
   metadata?: Record<string, unknown>;
 }
 
