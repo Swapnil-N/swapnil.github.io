@@ -141,14 +141,17 @@ create or replace function public.has_permission(perm text) returns boolean as $
   ), false);
 $$ language sql security definer stable set search_path = public, pg_catalog;
 
-revoke execute on function public.has_permission(text) from anon, authenticated, public;
+-- has_permission is referenced by RLS policies on profiles/roles/people/etc.
+-- Postgres evaluates RLS predicates as the calling role and does not guarantee
+-- OR short-circuit, so even self-row reads invoke this function. EXECUTE must
+-- stay granted to anon/authenticated or every authenticated DB call breaks.
+-- Safe because the function filters on auth.uid() and only returns the
+-- caller's own permissions.
 
 -- Back-compat wrapper: an admin has both manage_users and manage_roles.
 create or replace function public.is_admin() returns boolean as $$
   select public.has_permission('manage_users') and public.has_permission('manage_roles');
 $$ language sql security definer stable set search_path = public, pg_catalog;
-
-revoke execute on function public.is_admin() from anon, authenticated, public;
 
 -- ============================================================================
 -- Triggers
