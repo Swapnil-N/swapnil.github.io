@@ -5,6 +5,7 @@ import Button from '@/components/admin/ui/Button';
 import Input from '@/components/admin/ui/Input';
 import Textarea from '@/components/admin/ui/Textarea';
 import Modal from '@/components/admin/ui/Modal';
+import Alert from '@/components/admin/ui/Alert';
 import ConfirmDialog from '@/components/admin/ui/ConfirmDialog';
 import { Table, THead, TBody, TR, TH, TD } from '@/components/admin/ui/Table';
 import EmptyState from '@/components/admin/ui/EmptyState';
@@ -98,9 +99,7 @@ export default function PeopleTable({ people }: { people: Person[] }) {
 
   return (
     <>
-      {error && !creating && !editing && (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
-      )}
+      {error && !creating && !editing && <div className="mb-4"><Alert tone="error">{error}</Alert></div>}
       <div className="mb-4 flex justify-end">
         <Button onClick={openCreate}>+ New person</Button>
       </div>
@@ -149,9 +148,7 @@ export default function PeopleTable({ people }: { people: Person[] }) {
         }
       >
         <div className="space-y-4">
-          {error && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
-          )}
+          {error && <Alert tone="error">{error}</Alert>}
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="First name" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
             <Input label="Last name" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />

@@ -5,7 +5,9 @@ import Button from '@/components/admin/ui/Button';
 import Input from '@/components/admin/ui/Input';
 import Badge from '@/components/admin/ui/Badge';
 import Modal from '@/components/admin/ui/Modal';
+import Alert from '@/components/admin/ui/Alert';
 import { Table, THead, TBody, TR, TH, TD } from '@/components/admin/ui/Table';
+import { formatTimestamp } from '@/lib/format-date';
 import { sendInvitation, revokeInvitation } from './actions';
 import type { Invitation } from '@/types/family';
 
@@ -41,12 +43,8 @@ export default function InvitationsList({ invitations }: { invitations: Invitati
 
   return (
     <>
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
-      )}
-      {success && (
-        <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">{success}</div>
-      )}
+      {error && !open && <div className="mb-4"><Alert tone="error">{error}</Alert></div>}
+      {success && <div className="mb-4"><Alert tone="success">{success}</Alert></div>}
       <div className="mb-4 flex justify-end">
         <Button onClick={() => setOpen(true)}>+ Invite</Button>
       </div>
@@ -70,7 +68,7 @@ export default function InvitationsList({ invitations }: { invitations: Invitati
                 <TD>
                   {inv.status === 'pending' ? <Badge tone="warning">Pending</Badge> : <Badge tone="success">Accepted</Badge>}
                 </TD>
-                <TD className="text-muted whitespace-nowrap">{new Date(inv.created_at).toLocaleString()}</TD>
+                <TD className="text-muted whitespace-nowrap">{formatTimestamp(inv.created_at)}</TD>
                 <TD className="text-right">
                   {inv.status === 'pending' && (
                     <Button size="sm" variant="danger" onClick={() => revoke(inv.id)} disabled={pending}>
@@ -86,23 +84,26 @@ export default function InvitationsList({ invitations }: { invitations: Invitati
 
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => { setOpen(false); setError(null); }}
         title="Invite a family member"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setOpen(false)} disabled={pending}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setOpen(false); setError(null); }} disabled={pending}>Cancel</Button>
             <Button onClick={send} disabled={pending || !email.trim()}>{pending ? 'Sending…' : 'Send invite'}</Button>
           </>
         }
       >
-        <Input
-          label="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="cousin@example.com"
-          hint="They'll receive a link to sign up. New users start with the family_member role."
-        />
+        <div className="space-y-4">
+          {error && <Alert tone="error">{error}</Alert>}
+          <Input
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="cousin@example.com"
+            hint="They'll receive a link to sign up. New users start with the family_member role."
+          />
+        </div>
       </Modal>
     </>
   );

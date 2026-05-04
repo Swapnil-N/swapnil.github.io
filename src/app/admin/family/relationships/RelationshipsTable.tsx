@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import Button from '@/components/admin/ui/Button';
 import Select from '@/components/admin/ui/Select';
 import Modal from '@/components/admin/ui/Modal';
+import Alert from '@/components/admin/ui/Alert';
 import ConfirmDialog from '@/components/admin/ui/ConfirmDialog';
 import { Table, THead, TBody, TR, TH, TD } from '@/components/admin/ui/Table';
 import EmptyState from '@/components/admin/ui/EmptyState';
@@ -66,9 +67,7 @@ export default function RelationshipsTable({
 
   return (
     <>
-      {error && !open && (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
-      )}
+      {error && !open && <div className="mb-4"><Alert tone="error">{error}</Alert></div>}
       <div className="mb-4 flex justify-end">
         <Button onClick={openCreate} disabled={people.length < 2}>+ New relationship</Button>
       </div>
@@ -111,9 +110,7 @@ export default function RelationshipsTable({
         }
       >
         <div className="space-y-4">
-          {error && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
-          )}
+          {error && <Alert tone="error">{error}</Alert>}
           <Select
             label="Person"
             value={form.person_id}

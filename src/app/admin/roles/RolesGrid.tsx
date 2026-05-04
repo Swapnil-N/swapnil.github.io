@@ -7,6 +7,7 @@ import Textarea from '@/components/admin/ui/Textarea';
 import Toggle from '@/components/admin/ui/Toggle';
 import Badge from '@/components/admin/ui/Badge';
 import Modal from '@/components/admin/ui/Modal';
+import Alert from '@/components/admin/ui/Alert';
 import ConfirmDialog from '@/components/admin/ui/ConfirmDialog';
 import { PERMISSION_LABELS, type Role } from '@/types/admin';
 import { createRole, updateRole, deleteRole } from './actions';
@@ -110,9 +111,7 @@ export default function RolesGrid({ roles }: { roles: Role[] }) {
 
   return (
     <>
-      {error && !creating && !editing && (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
-      )}
+      {error && !creating && !editing && <div className="mb-4"><Alert tone="error">{error}</Alert></div>}
       <div className="mb-4 flex justify-end">
         <Button onClick={openCreate}>+ New role</Button>
       </div>
@@ -157,9 +156,7 @@ export default function RolesGrid({ roles }: { roles: Role[] }) {
         }
       >
         <div className="space-y-4">
-          {error && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
-          )}
+          {error && <Alert tone="error">{error}</Alert>}
           <Input
             label="Name"
             value={form.name}

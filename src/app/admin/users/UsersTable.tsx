@@ -5,7 +5,9 @@ import { Table, THead, TBody, TR, TH, TD } from '@/components/admin/ui/Table';
 import Button from '@/components/admin/ui/Button';
 import Select from '@/components/admin/ui/Select';
 import Badge from '@/components/admin/ui/Badge';
+import Alert from '@/components/admin/ui/Alert';
 import ConfirmDialog from '@/components/admin/ui/ConfirmDialog';
+import { formatTimestamp } from '@/lib/format-date';
 import { updateUserRole, setUserDisabled, deleteUser } from './actions';
 import type { Role } from '@/types/admin';
 
@@ -56,11 +58,7 @@ export default function UsersTable({ users, roles, currentUserId }: UsersTablePr
 
   return (
     <>
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4"><Alert tone="error">{error}</Alert></div>}
       <Table>
         <THead>
           <TR>
@@ -92,9 +90,7 @@ export default function UsersTable({ users, roles, currentUserId }: UsersTablePr
                     ))}
                   </Select>
                 </TD>
-                <TD className="text-muted whitespace-nowrap">
-                  {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : '—'}
-                </TD>
+                <TD className="text-muted whitespace-nowrap">{formatTimestamp(user.last_sign_in_at)}</TD>
                 <TD>
                   {user.disabled ? <Badge tone="danger">Disabled</Badge> : <Badge tone="success">Active</Badge>}
                 </TD>

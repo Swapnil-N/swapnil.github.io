@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import Button from '@/components/admin/ui/Button';
 import Input from '@/components/admin/ui/Input';
 import Badge from '@/components/admin/ui/Badge';
+import Alert from '@/components/admin/ui/Alert';
 import { updateOwnProfile, requestPasswordReset } from './actions';
 import type { Profile } from '@/types/family';
 import type { Role } from '@/types/admin';
@@ -54,15 +55,7 @@ export default function AccountForm({ profile, role }: Props) {
       </div>
 
       {message && (
-        <div
-          className={`rounded-xl border px-4 py-3 text-sm ${
-            message.kind === 'success'
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-              : 'border-red-500/30 bg-red-500/10 text-red-300'
-          }`}
-        >
-          {message.text}
-        </div>
+        <Alert tone={message.kind === 'success' ? 'success' : 'error'}>{message.text}</Alert>
       )}
 
       <div className="space-y-4">

@@ -3,6 +3,8 @@ import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supab
 import Badge from '@/components/admin/ui/Badge';
 import { Table, THead, TBody, TR, TH, TD } from '@/components/admin/ui/Table';
 import EmptyState from '@/components/admin/ui/EmptyState';
+import Alert from '@/components/admin/ui/Alert';
+import { formatTimestamp } from '@/lib/format-date';
 import type { Role, AuditLogEntry } from '@/types/admin';
 
 interface RoleBreakdownRow {
@@ -106,13 +108,11 @@ export default async function AdminOverviewPage() {
       <div>
         <h2 className="font-heading text-lg font-bold text-foreground mb-3">Recently active users</h2>
         {recent.error === 'service_role_missing' ? (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          <Alert tone="warning">
             Set <code className="font-mono">SUPABASE_SERVICE_ROLE_KEY</code> in <code className="font-mono">.env.local</code> to see last-sign-in data.
-          </div>
+          </Alert>
         ) : recent.error ? (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            Failed to load: {recent.error}
-          </div>
+          <Alert tone="error">Failed to load: {recent.error}</Alert>
         ) : recent.rows && recent.rows.length > 0 ? (
           <Table>
             <THead>
@@ -125,7 +125,7 @@ export default async function AdminOverviewPage() {
               {recent.rows.map((u) => (
                 <TR key={u.id}>
                   <TD>{u.email}</TD>
-                  <TD className="text-muted">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : '—'}</TD>
+                  <TD className="text-muted whitespace-nowrap">{formatTimestamp(u.last_sign_in_at)}</TD>
                 </TR>
               ))}
             </TBody>
@@ -151,7 +151,7 @@ export default async function AdminOverviewPage() {
             <TBody>
               {stats.recentAudit.map((entry) => (
                 <TR key={entry.id}>
-                  <TD className="text-muted whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</TD>
+                  <TD className="text-muted whitespace-nowrap">{formatTimestamp(entry.created_at)}</TD>
                   <TD className="font-mono text-xs">{entry.action}</TD>
                   <TD className="text-muted">{entry.target_type ?? '—'}</TD>
                 </TR>

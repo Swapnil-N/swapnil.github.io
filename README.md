@@ -46,8 +46,11 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ```
 src/
   app/          — Pages and API routes (Next.js App Router)
+                  Admin dashboard at /admin (gated by granular permissions);
+                  account self-service at /account.
   components/   — React components organized by feature
-  lib/          — Utility functions (MDX processing, Supabase clients)
+                  (admin/ui primitives are reusable across the dashboard)
+  lib/          — Utility functions (MDX, Supabase clients, auth helpers)
   types/        — TypeScript types
 content/
   travel/       — Travel trip MDX files and _meta.ts index
@@ -58,7 +61,7 @@ public/
   images/       — Static images (travel photos, etc.)
   models/       — 3D assets (earth texture)
 middleware.ts   — Supabase session refresh + route protection
-supabase-schema.sql — Database schema for auth + family tree
+supabase-schema.sql — Database schema for auth + family tree + admin
 ```
 
 ## Content Management
