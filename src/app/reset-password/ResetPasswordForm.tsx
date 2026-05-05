@@ -7,7 +7,11 @@ import Input from '@/components/admin/ui/Input';
 import Alert from '@/components/admin/ui/Alert';
 import { createClient } from '@/lib/supabase/client';
 
-export default function ResetPasswordForm() {
+interface Props {
+  next: string;
+}
+
+export default function ResetPasswordForm({ next }: Props) {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -33,7 +37,7 @@ export default function ResetPasswordForm() {
         setError(updateError.message);
         return;
       }
-      router.replace('/family-tree');
+      router.replace(next);
       router.refresh();
     } finally {
       setPending(false);
