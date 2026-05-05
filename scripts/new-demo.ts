@@ -4,10 +4,9 @@
  *
  * Usage:
  *   npm run new-demo -- --slug=acme-bakery --name="Acme Bakery"
- *   npm run new-demo -- --slug=acme-bakery --name="Acme Bakery" --theme=light
  *
  * Creates:
- *   src/app/demo/{slug}/layout.tsx   — auth gate + dashboard strip + theme wrapper
+ *   src/app/demo/{slug}/layout.tsx   — auth gate + dashboard strip
  *   src/app/demo/{slug}/page.tsx     — placeholder page
  *   src/app/demo/{slug}/CLAUDE.md    — per-demo guardrails for vibe-coding agents
  *   public/demo/{slug}/              — assets folder
@@ -28,7 +27,6 @@ for (const arg of process.argv.slice(2)) {
 
 const slug = argMap['slug']?.trim().toLowerCase();
 const name = argMap['name']?.trim() || slug;
-const themeArg = (argMap['theme']?.trim().toLowerCase() || 'dark') as 'dark' | 'light';
 
 // Escape a string for safe embedding inside a template literal.
 function escapeTpl(s: string): string {
@@ -37,17 +35,12 @@ function escapeTpl(s: string): string {
 
 if (!slug) {
   console.error('Error: --slug is required');
-  console.error('Usage: npm run new-demo -- --slug=acme-bakery --name="Acme Bakery" [--theme=light]');
+  console.error('Usage: npm run new-demo -- --slug=acme-bakery --name="Acme Bakery"');
   process.exit(1);
 }
 
 if (!/^[a-z0-9-]+$/.test(slug)) {
   console.error('Error: slug must be lowercase letters, numbers, and hyphens only');
-  process.exit(1);
-}
-
-if (themeArg !== 'dark' && themeArg !== 'light') {
-  console.error(`Error: --theme must be 'dark' or 'light' (got '${themeArg}')`);
   process.exit(1);
 }
 
@@ -62,17 +55,6 @@ if (existsSync(demoDir)) {
 
 const safeName = escapeTpl(name ?? slug ?? '');
 
-// Layout: dark theme renders {children} bare; light theme wraps in data-theme="light"
-// so Tailwind tokens cascade to light values without affecting the rest of the site.
-// The dashboard strip stays OUTSIDE the wrapper so it remains site-themed (dark) —
-// visually distinct from the demo content below it.
-const layoutChildren =
-  themeArg === 'light'
-    ? `<div data-theme="light" className="bg-surface text-foreground min-h-screen">
-        {children}
-      </div>`
-    : `{children}`;
-
 const layoutContent = `import { gateDemo } from '@/lib/demo/gate';
 import ClientDashboardStrip from '@/components/client/ClientDashboardStrip';
 
@@ -83,7 +65,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
   return (
     <>
       <ClientDashboardStrip client={client} isAdmin={isAdmin} />
-      ${layoutChildren}
+      {children}
     </>
   );
 }
@@ -106,27 +88,32 @@ export default function DemoPage() {
 }
 `;
 
-const themeBlock =
-  themeArg === 'light'
-    ? `**Theme: light** — \`layout.tsx\` wraps \`{children}\` in \`<div data-theme="light">\`.
-Tailwind tokens (\`bg-surface\`, \`text-foreground\`, \`text-muted\`, \`text-primary\`, etc.)
-cascade to light values inside the wrapper. Don't unwrap — the wrapper is what makes
-this demo light without affecting the rest of the site. The dashboard strip above
-the wrapper stays site-themed (dark) by design.`
-    : `**Theme: dark** (site default). Tailwind tokens (\`bg-surface\`, \`text-foreground\`,
-\`text-muted\`, \`text-primary\`, etc.) resolve to the site's dark palette. To switch
-this demo to light, replace \`{children}\` in \`layout.tsx\` with:
-\`<div data-theme="light" className="bg-surface text-foreground min-h-screen">{children}</div>\``;
-
 const claudeMdContent = `# Demo: ${safeName} (\`${slug}\`)
 
 You are vibe-coding a client demo at \`/demo/${slug}\`. Everything you write here
 will eventually be cut and pasted into a fresh Next.js repo for graduation, so it
 **must be self-contained**.
 
-## Theme
+## Theming — full flexibility
 
-${themeBlock}
+This demo has **no preset theme**. The site is dark by default, but inside this
+folder you have a full toolkit; pick whatever fits the brand:
+
+- **Inline Tailwind colors** (most flexible): \`bg-rose-50\`, \`text-stone-900\`,
+  \`bg-gradient-to-br from-amber-100 to-rose-200\`, etc. Mix freely.
+- **Opt into the shared light palette**: wrap any subtree (or the whole demo)
+  in \`<div data-theme="light" className="bg-surface text-foreground min-h-screen">\`.
+  Inside, the existing tokens (\`bg-surface\`, \`text-foreground\`, \`text-muted\`,
+  \`text-primary\`, \`border-border\`, etc.) cascade to light values. Defined
+  in \`src/app/globals.css\` — don't add demo-specific overrides there.
+- **Co-located CSS module**: e.g. \`Hero.module.css\` next to \`Hero.tsx\`
+  for a custom palette scoped to one component.
+- **Custom CSS vars on a wrapper**: \`<div style={{ '--brand': '#c9a87c' }}>\`
+  for one-off accent colors used inside that subtree.
+
+The **dashboard strip** (sticky top bar with Approve / Request Changes / Pay
+buttons) stays site-themed (dark) regardless of what you do — it's chrome,
+not part of the demo content.
 
 ## Scope — what you can edit
 
@@ -139,7 +126,7 @@ ${themeBlock}
 
 ## Imports
 
-- Tailwind classes inline (preferred), or co-locate a \`*.module.css\` next to the component.
+- Tailwind classes inline (preferred), or co-locate a \`*.module.css\`.
 - \`next/image\`, \`next/link\`, anything from React or installed deps.
 - READ-ONLY shared primitives: \`@/components/admin/ui/{Button,Modal,Input,...}\` and
   \`@/components/client/*\`. Use them as-is. If you need a new shared component for
@@ -191,7 +178,7 @@ writeFileSync(join(demoDir, 'CLAUDE.md'), claudeMdContent);
 writeFileSync(join(publicDir, '.gitkeep'), '');
 
 console.log(`
-Demo scaffolded: ${slug} (theme: ${themeArg})
+Demo scaffolded: ${slug}
 
   src/app/demo/${slug}/layout.tsx
   src/app/demo/${slug}/page.tsx
