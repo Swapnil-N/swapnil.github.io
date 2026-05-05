@@ -154,11 +154,22 @@ $$ language sql security definer stable set search_path = public, pg_catalog;
 -- Triggers
 -- ============================================================================
 
--- Auto-create profile on signup. Defaults to family_member role.
+-- Auto-create profile on signup. Enforces invite-only access at the database
+-- level: signups whose email isn't in the invitations table are rejected and
+-- the auth.users insert rolls back with the rest of the transaction.
 create or replace function public.handle_new_user() returns trigger as $$
 declare
   default_role_id uuid;
+  has_invite boolean;
 begin
+  select exists (
+    select 1 from public.invitations where email = new.email
+  ) into has_invite;
+  if not has_invite then
+    raise exception 'Signup is invite-only. Ask an admin to send you an invitation.'
+      using errcode = 'P0001';
+  end if;
+
   select id into default_role_id from public.roles where name = 'family_member' limit 1;
   if default_role_id is null then
     raise exception 'family_member role missing — cannot create profile';

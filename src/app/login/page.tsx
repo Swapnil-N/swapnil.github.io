@@ -50,7 +50,15 @@ export default function LoginPage() {
         options: { data: { display_name: displayName } },
       });
       if (signUpError) {
-        setError(signUpError.message);
+        // The handle_new_user trigger raises if the email isn't in the
+        // invitations table. Supabase wraps the message inconsistently, so
+        // sniff for either the trigger text or its generic fallback.
+        const msg = signUpError.message.toLowerCase();
+        if (msg.includes('invite-only') || msg.includes('database error saving new user')) {
+          setError('This site is invite-only. Ask an admin to send you an invite.');
+        } else {
+          setError(signUpError.message);
+        }
         return;
       }
 
@@ -86,7 +94,7 @@ export default function LoginPage() {
         <p className="text-muted mb-10">
           {mode === 'signin'
             ? 'Welcome back. Sign in to continue.'
-            : 'Create an account to get started.'}
+            : 'This site is invite-only. Sign up using the email an admin invited.'}
         </p>
 
         {(error || urlError) && (

@@ -28,7 +28,7 @@ Currently on `main` branch.
 - **React 19 strict lint rules**: No `Math.random()` in `useMemo` or during render. No `setState` in `useEffect`. No refs during render. Use deterministic alternatives or module-scope generation.
 - **Travel trips**: Add an MDX file to `content/travel/` AND update `content/travel/_meta.ts` (the source of truth for globe pins and ordering).
 - **Contact page**: Custom styled form that submits to Google Forms via hidden iframe (no backend API route).
-- **Auth**: Supabase Auth with invite-only model. Middleware protects `/family-tree`. Login at `/login`.
+- **Auth**: Supabase Auth with invite-only model. Middleware protects `/family-tree`. Login at `/login`. Self-signup is enforced invite-only at the DB layer: the `handle_new_user()` trigger rejects emails that aren't in the `invitations` table.
 - **Family tree**: Data stored in Supabase (NOT in repo — repo is public). ReactFlow + dagre for visualization. Only accessible to authenticated users.
 
 ## Project Structure
@@ -76,6 +76,8 @@ supabase-schema.sql — Database schema (run in Supabase SQL editor)
 - **Triggers**: `guard_profile_self_update` (no self role_id or self disabled change — reassignment requires another admin), `prevent_system_role_mutation` (no rename/delete/is_system toggle on system roles), `prevent_self_lockout` (admin can't drop `can_manage_roles` from their own role).
 - **Routes**: `/admin` (stats), `/admin/users`, `/admin/roles`, `/admin/invitations`, `/admin/audit`, `/account`. Family-tree CRUD lives on `/family-tree` itself (gated by `can_edit_family_tree`) — server actions are in `src/app/family-tree/actions.ts` and the editor UI is in `src/app/family-tree/ManagePanel.tsx`.
 - **Password flows**: `/account` → inline change-password (no email roundtrip — relies on the existing session). `/login` → "Forgot password?" → `/forgot-password` (email input → `resetPasswordForEmail`) → email link routes through `/auth/callback?next=/reset-password` → `/reset-password` (signed-in, sets new password via `updateUser`). Admins can also trigger a reset email for any user via `sendPasswordReset` on `/admin/users` — same destination, no service-role needed.
+- **Invite-only enforcement**: `handle_new_user()` trigger raises if the signup email isn't in `invitations`. Login page detects the trigger error message and shows "This site is invite-only. Ask an admin to send you an invite."
+- **Two email-link routes**: `/auth/callback` handles the legacy `?code=...` PKCE redirect. `/auth/confirm` handles the modern `?token_hash=...&type=...` flow if the Supabase email template is customized to use `{{ .TokenHash }}`. Both work; pick whichever the template emits.
 - **Auth state**: `AuthProvider` (`src/components/auth/AuthProvider.tsx`) holds `{ user, profile, role }` from a server-fetched join. Subscribes to `onAuthStateChange` and calls `router.refresh()` on auth events. Use `useAuth()` in client components.
 - **Server helpers**: `getCurrentUserWithRole()`, `requirePermission()`, `requireAnyPermission()` in `src/lib/auth/permissions.ts`. Pure permission check shared with client code in `permissions.client.ts`.
 - **Service-role client**: `src/lib/supabase/admin.ts` — `createServiceRoleClient()` is server-only (`import 'server-only'`), per-request, throws `MissingServiceRoleKeyError` if env var missing. Used for `deleteUser`, `inviteUserByEmail`, `listUsers`.
