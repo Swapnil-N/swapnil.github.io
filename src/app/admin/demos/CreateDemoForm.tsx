@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import Button from '@/components/admin/ui/Button';
 import Input from '@/components/admin/ui/Input';
+import Select from '@/components/admin/ui/Select';
 import Alert from '@/components/admin/ui/Alert';
 import Modal from '@/components/admin/ui/Modal';
 import { createDemo } from './actions';
@@ -12,9 +13,12 @@ interface Props {
   onClose: () => void;
 }
 
+type Theme = 'dark' | 'light';
+
 export default function CreateDemoForm({ open, onClose }: Props) {
   const [slug, setSlug] = useState('');
   const [name, setName] = useState('');
+  const [theme, setTheme] = useState<Theme>('dark');
   const [error, setError] = useState<string | null>(null);
   const [scaffoldCmd, setScaffoldCmd] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -22,6 +26,7 @@ export default function CreateDemoForm({ open, onClose }: Props) {
   function handleClose() {
     setSlug('');
     setName('');
+    setTheme('dark');
     setError(null);
     setScaffoldCmd(null);
     onClose();
@@ -36,7 +41,8 @@ export default function CreateDemoForm({ open, onClose }: Props) {
         return;
       }
       const escapedName = name.trim().replace(/'/g, "'\\''");
-      setScaffoldCmd(`npm run new-demo -- --slug=${slug.trim().toLowerCase()} --name='${escapedName}'`);
+      const themeFlag = theme === 'light' ? ' --theme=light' : '';
+      setScaffoldCmd(`npm run new-demo -- --slug=${slug.trim().toLowerCase()} --name='${escapedName}'${themeFlag}`);
     });
   }
 
@@ -89,6 +95,14 @@ export default function CreateDemoForm({ open, onClose }: Props) {
               onChange={(e) => setName(e.target.value)}
               placeholder="Acme Bakery"
             />
+            <Select
+              label="Theme"
+              value={theme}
+              onChange={(e) => setTheme(e.target.value as Theme)}
+            >
+              <option value="dark">Dark (matches site)</option>
+              <option value="light">Light (opt-in)</option>
+            </Select>
           </>
         )}
       </div>

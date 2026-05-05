@@ -93,12 +93,16 @@ Spin up a demo site at `swapnil.dev/demo/{slug}` behind per-client auth, then gr
 # 1. Create the DB record via /admin/demos (admin UI), then scaffold the folder:
 npm run new-demo -- --slug=acme-bakery --name="Acme Bakery"
 
-# 2. Vibe-code the demo in src/app/demo/acme-bakery/
-# 3. Invite the client via /admin/invitations (role=Client, demo=acme-bakery)
-# 4. Set a Stripe payment link via /admin/demos when ready to collect payment
+# 2a. (optional) Opt into light theme for this demo:
+npm run new-demo -- --slug=acme-bakery --name="Acme Bakery" --theme=light
+
+# 2b. Vibe-code the demo in src/app/demo/acme-bakery/ (a per-demo CLAUDE.md is
+#     dropped in by the scaffolder so any Claude agent picks up the guardrails).
+# 3.  Invite the client via /admin/invitations (role=Client, demo=acme-bakery)
+# 4.  Set a Stripe payment link via /admin/demos when ready to collect payment
 ```
 
-Each demo lives entirely in `src/app/demo/{slug}/` + `public/demo/{slug}/` so it can be cleanly cut and pasted into a graduation repo. The shared `gateDemo()` wrapper in `src/lib/demo/gate.ts` enforces auth and ownership; admins can preview any demo.
+Each demo lives entirely in `src/app/demo/{slug}/` + `public/demo/{slug}/` so it can be cleanly cut and pasted into a graduation repo. The shared `gateDemo()` wrapper in `src/lib/demo/gate.ts` enforces auth and ownership; admins can preview any demo. The site is dark-only, but individual demos can opt into a light palette via `--theme=light` (the layout wraps `{children}` in `<div data-theme="light">` and Tailwind tokens cascade — no other site pages are affected).
 
 ## Environment Variables
 
