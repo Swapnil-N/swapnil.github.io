@@ -35,7 +35,8 @@ export default function CreateDemoForm({ open, onClose }: Props) {
         setError(res.error);
         return;
       }
-      setScaffoldCmd(`npm run new-demo -- --slug=${slug.trim().toLowerCase()} --name="${name.trim()}"`);
+      const escapedName = name.trim().replace(/'/g, "'\\''");
+      setScaffoldCmd(`npm run new-demo -- --slug=${slug.trim().toLowerCase()} --name='${escapedName}'`);
     });
   }
 

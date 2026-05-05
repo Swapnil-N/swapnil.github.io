@@ -27,6 +27,11 @@ for (const arg of process.argv.slice(2)) {
 const slug = argMap['slug']?.trim().toLowerCase();
 const name = argMap['name']?.trim() || slug;
 
+// Escape a string for safe embedding inside a template literal.
+function escapeTpl(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+}
+
 if (!slug) {
   console.error('Error: --slug is required');
   console.error('Usage: npm run new-demo -- --slug=acme-bakery --name="Acme Bakery"');
@@ -63,17 +68,18 @@ export default async function Layout({ children }: { children: React.ReactNode }
 }
 `;
 
+const safeName = escapeTpl(name ?? slug ?? '');
 const pageContent = `import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '${name} — Demo',
+  title: '${safeName} — Demo',
   robots: { index: false, follow: false },
 };
 
 export default function DemoPage() {
   return (
     <main className="max-w-5xl mx-auto px-6 py-16">
-      <h1 className="font-heading text-4xl md:text-5xl font-bold mb-6">${name}</h1>
+      <h1 className="font-heading text-4xl md:text-5xl font-bold mb-6">${safeName}</h1>
       <p className="text-muted text-lg">Your website preview is being prepared. Check back soon.</p>
     </main>
   );

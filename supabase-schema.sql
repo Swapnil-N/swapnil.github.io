@@ -436,9 +436,43 @@ begin
     update public.clients set owner_user_id = new.id where slug = inv.client_slug;
   end if;
 
-  update public.invitations set status = 'accepted' where email = new.email;
+  update public.invitations set status = 'accepted' where id = inv.id;
   return new;
 end;
 $$ language plpgsql security definer set search_path = public, pg_catalog, auth;
 
 revoke execute on function public.handle_new_user() from anon, authenticated, public;
+
+-- ============================================================================
+-- touch_demo_last_seen — SECURITY DEFINER helper for last_seen_at tracking
+-- ============================================================================
+-- Clients have no blanket UPDATE policy on `clients`, so we use a SECURITY
+-- DEFINER function that restricts the update to the caller's own row.
+
+create or replace function public.touch_demo_last_seen(p_slug text)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+begin
+  update public.clients
+     set last_seen_at = now()
+   where slug = p_slug
+     and owner_user_id = (select auth.uid());
+end;
+$$;
+
+revoke execute on function public.touch_demo_last_seen(text) from public, anon;
+grant  execute on function public.touch_demo_last_seen(text) to authenticated;
+
+-- ============================================================================
+-- Performance indexes added post-review
+-- ============================================================================
+
+create index if not exists client_actions_user_id_idx
+  on public.client_actions (user_id);
+
+create index if not exists invitations_client_slug_idx
+  on public.invitations (client_slug)
+  where client_slug is not null;

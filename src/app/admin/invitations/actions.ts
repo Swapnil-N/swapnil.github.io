@@ -34,7 +34,7 @@ export async function sendInvitation({ email, role = 'family_member', client_slu
     .maybeSingle();
   if (roleErr || !roleRow) return { ok: false, error: `Role '${role}' not found` };
 
-  // Verify client_slug exists (better error than FK violation)
+  // Verify client_slug exists (friendlier than a FK violation)
   if (role === 'client' && client_slug) {
     const { data: clientRow } = await supabase
       .from('clients')
@@ -52,7 +52,18 @@ export async function sendInvitation({ email, role = 'family_member', client_slu
       role_id: roleRow.id,
       client_slug: client_slug ?? null,
     });
-  if (insertError) return { ok: false, error: insertError.message };
+
+  if (insertError) {
+    // Unique constraint on invitations.email — the address already has a pending
+    // or accepted invitation.
+    if (insertError.code === '23505') {
+      return {
+        ok: false,
+        error: 'An invitation already exists for this email. If they have already signed up, manage their access from Users. If the invite was not accepted, revoke it first then re-invite.',
+      };
+    }
+    return { ok: false, error: insertError.message };
+  }
 
   let emailDelivered = true;
   let emailError: string | null = null;

@@ -7,7 +7,7 @@ import { logAudit } from '@/lib/auth/audit';
 
 type Result = { ok: true } | { ok: false; error: string };
 
-const SLUG_RE = /^[a-z0-9-]+$/;
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,}[a-z0-9]$/;
 
 export async function createDemo({
   slug,
@@ -21,14 +21,25 @@ export async function createDemo({
   const trimName = business_name.trim();
 
   if (!trimSlug) return { ok: false, error: 'Slug is required' };
-  if (!SLUG_RE.test(trimSlug)) return { ok: false, error: 'Slug must be lowercase letters, numbers, and hyphens only' };
+  if (!SLUG_RE.test(trimSlug)) {
+    return { ok: false, error: 'Slug must be 3+ characters: lowercase letters, numbers, hyphens (no leading/trailing hyphens)' };
+  }
   if (!trimName) return { ok: false, error: 'Business name is required' };
 
   const supabase = await createClient();
-  const { error } = await supabase.from('clients').insert({ slug: trimSlug, business_name: trimName });
+  const { data, error } = await supabase
+    .from('clients')
+    .insert({ slug: trimSlug, business_name: trimName })
+    .select('id')
+    .single();
   if (error) return { ok: false, error: error.message };
 
-  await logAudit({ action: 'demo.created', targetType: 'client', metadata: { slug: trimSlug, business_name: trimName } });
+  await logAudit({
+    action: 'demo.created',
+    targetType: 'client',
+    targetId: data.id,
+    metadata: { slug: trimSlug, business_name: trimName },
+  });
   revalidatePath('/admin/demos');
   revalidatePath('/admin');
   return { ok: true };
@@ -59,10 +70,16 @@ export async function markPaid(id: string): Promise<Result> {
 export async function setPaymentLink(id: string, url: string): Promise<Result> {
   await requirePermission('manage_users');
   const trimUrl = url.trim();
-  if (trimUrl && !trimUrl.startsWith('http')) return { ok: false, error: 'URL must start with http:// or https://' };
+  // Require https — http would allow insecure or phishing URLs in window.open()
+  if (trimUrl && !trimUrl.startsWith('https://')) {
+    return { ok: false, error: 'URL must start with https://' };
+  }
 
   const supabase = await createClient();
-  const { error } = await supabase.from('clients').update({ payment_link_url: trimUrl || null }).eq('id', id);
+  const { error } = await supabase
+    .from('clients')
+    .update({ payment_link_url: trimUrl || null })
+    .eq('id', id);
   if (error) return { ok: false, error: error.message };
   await logAudit({ action: 'demo.payment_link_set', targetType: 'client', targetId: id });
   revalidatePath('/admin/demos');

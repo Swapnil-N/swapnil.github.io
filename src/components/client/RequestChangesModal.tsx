@@ -33,6 +33,7 @@ export default function RequestChangesModal({ open, clientId, onClose, onSuccess
         return;
       }
       setMessage('');
+      setError(null);
       onSuccess("Feedback received — we'll review and get back to you.");
     });
   }

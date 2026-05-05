@@ -10,18 +10,31 @@ export default async function AdminInvitationsPage() {
   await requirePermission('invite');
   const supabase = await createClient();
 
-  const [{ data: invitationsData }, { data: unclaimedData }] = await Promise.all([
-    supabase.from('invitations').select('*').order('created_at', { ascending: false }),
-    supabase
-      .from('clients')
-      .select('slug, business_name')
-      .is('owner_user_id', null)
-      .eq('status', 'demo')
-      .order('business_name'),
-  ]);
+  const [{ data: invitationsData }, { data: unclaimedRaw }, { data: pendingClientInvites }] =
+    await Promise.all([
+      supabase.from('invitations').select('*').order('created_at', { ascending: false }),
+      supabase
+        .from('clients')
+        .select('slug, business_name')
+        .is('owner_user_id', null)
+        .eq('status', 'demo')
+        .order('business_name'),
+      // Exclude demos that already have a pending invite — prevents double-inviting
+      supabase
+        .from('invitations')
+        .select('client_slug')
+        .eq('status', 'pending')
+        .not('client_slug', 'is', null),
+    ]);
 
   const invitations = (invitationsData ?? []) as Invitation[];
-  const unclaimedDemos = (unclaimedData ?? []) as Pick<Client, 'slug' | 'business_name'>[];
+
+  const pendingSlugs = new Set(
+    (pendingClientInvites ?? []).map((i) => i.client_slug as string),
+  );
+  const unclaimedDemos = ((unclaimedRaw ?? []) as Pick<Client, 'slug' | 'business_name'>[]).filter(
+    (d) => !pendingSlugs.has(d.slug),
+  );
 
   return (
     <div>

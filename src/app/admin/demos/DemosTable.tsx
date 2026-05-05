@@ -26,26 +26,34 @@ const STATUS_TONE = {
   demo: 'primary',
   paid: 'success',
   archived: 'neutral',
-} as const;
+} as const satisfies Record<Client['status'], 'primary' | 'success' | 'neutral'>;
 
 export default function DemosTable({ demos }: Props) {
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  // Track which row's action is in-flight; null = idle
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // archive confirm
   const [archiving, setArchiving] = useState<string | null>(null);
-
   // mark paid confirm
   const [payingId, setPayingId] = useState<string | null>(null);
-
   // payment link modal
   const [payLinkId, setPayLinkId] = useState<string | null>(null);
   const [payLinkUrl, setPayLinkUrl] = useState('');
   const [payLinkError, setPayLinkError] = useState<string | null>(null);
 
-  function doArchive(id: string) {
+  function run(id: string, fn: () => Promise<void>) {
     setError(null);
+    setPendingId(id);
     startTransition(async () => {
+      await fn();
+      setPendingId(null);
+    });
+  }
+
+  function doArchive(id: string) {
+    run(id, async () => {
       const res = await archiveDemo(id);
       if (!res.ok) setError(res.error);
       setArchiving(null);
@@ -53,8 +61,7 @@ export default function DemosTable({ demos }: Props) {
   }
 
   function doMarkPaid(id: string) {
-    setError(null);
-    startTransition(async () => {
+    run(id, async () => {
       const res = await markPaid(id);
       if (!res.ok) setError(res.error);
       setPayingId(null);
@@ -70,10 +77,11 @@ export default function DemosTable({ demos }: Props) {
   function doSetPayLink() {
     if (!payLinkId) return;
     setPayLinkError(null);
-    startTransition(async () => {
+    run(payLinkId, async () => {
       const res = await setPaymentLink(payLinkId, payLinkUrl);
       if (!res.ok) {
         setPayLinkError(res.error);
+        setPendingId(null); // clear so the modal stays open
       } else {
         setPayLinkId(null);
       }
@@ -100,63 +108,66 @@ export default function DemosTable({ demos }: Props) {
           </TR>
         </THead>
         <TBody>
-          {demos.map((demo) => (
-            <TR key={demo.id}>
-              <TD className="font-medium text-foreground">{demo.business_name}</TD>
-              <TD>
-                <Link
-                  href={`/demo/${demo.slug}`}
-                  className="font-mono text-xs text-primary hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  /demo/{demo.slug} ↗
-                </Link>
-              </TD>
-              <TD>
-                <Badge tone={STATUS_TONE[demo.status]}>{demo.status}</Badge>
-              </TD>
-              <TD className="text-muted text-sm">
-                {demo.owner_email ?? <span className="italic">Unclaimed</span>}
-              </TD>
-              <TD className="text-muted whitespace-nowrap text-sm">
-                {demo.last_seen_at ? formatTimestamp(demo.last_seen_at) : '—'}
-              </TD>
-              <TD>
-                <div className="flex items-center justify-end gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => openPayLink(demo)}
-                    disabled={pending}
-                    title="Set payment link"
+          {demos.map((demo) => {
+            const rowPending = pendingId === demo.id;
+            return (
+              <TR key={demo.id}>
+                <TD className="font-medium text-foreground">{demo.business_name}</TD>
+                <TD>
+                  <Link
+                    href={`/demo/${demo.slug}`}
+                    className="font-mono text-xs text-primary hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    $ Link
-                  </Button>
-                  {demo.status === 'demo' && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setPayingId(demo.id)}
-                        disabled={pending}
-                      >
-                        Mark paid
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => setArchiving(demo.id)}
-                        disabled={pending}
-                      >
-                        Archive
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </TD>
-            </TR>
-          ))}
+                    /demo/{demo.slug} ↗
+                  </Link>
+                </TD>
+                <TD>
+                  <Badge tone={STATUS_TONE[demo.status]}>{demo.status}</Badge>
+                </TD>
+                <TD className="text-muted text-sm">
+                  {demo.owner_email ?? <span className="italic">Unclaimed</span>}
+                </TD>
+                <TD className="text-muted whitespace-nowrap text-sm">
+                  {demo.last_seen_at ? formatTimestamp(demo.last_seen_at) : '—'}
+                </TD>
+                <TD>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openPayLink(demo)}
+                      disabled={rowPending}
+                      title="Set payment link"
+                    >
+                      $ Link
+                    </Button>
+                    {demo.status === 'demo' && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setPayingId(demo.id)}
+                          disabled={rowPending}
+                        >
+                          Mark paid
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => setArchiving(demo.id)}
+                          disabled={rowPending}
+                        >
+                          Archive
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TD>
+              </TR>
+            );
+          })}
         </TBody>
       </Table>
 
@@ -166,6 +177,7 @@ export default function DemosTable({ demos }: Props) {
         message="The demo will be hidden from the client. You can restore it via a direct DB update if needed."
         confirmLabel="Archive"
         destructive
+        loading={pendingId === archiving}
         onConfirm={() => archiving && doArchive(archiving)}
         onCancel={() => setArchiving(null)}
       />
@@ -175,6 +187,7 @@ export default function DemosTable({ demos }: Props) {
         title="Mark as paid?"
         message="This records that the client has paid. The demo will show a 'Paid' badge."
         confirmLabel="Mark paid"
+        loading={pendingId === payingId}
         onConfirm={() => payingId && doMarkPaid(payingId)}
         onCancel={() => setPayingId(null)}
       />
@@ -185,9 +198,11 @@ export default function DemosTable({ demos }: Props) {
         title="Set payment link"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setPayLinkId(null)} disabled={pending}>Cancel</Button>
-            <Button onClick={doSetPayLink} disabled={pending}>
-              {pending ? 'Saving…' : 'Save'}
+            <Button variant="ghost" onClick={() => setPayLinkId(null)} disabled={!!pendingId}>
+              Cancel
+            </Button>
+            <Button onClick={doSetPayLink} disabled={!!pendingId}>
+              {pendingId === payLinkId ? 'Saving…' : 'Save'}
             </Button>
           </>
         }
@@ -200,7 +215,7 @@ export default function DemosTable({ demos }: Props) {
             value={payLinkUrl}
             onChange={(e) => setPayLinkUrl(e.target.value)}
             placeholder="https://buy.stripe.com/…"
-            hint="Paste the Stripe Payment Link URL. Leave blank to remove."
+            hint="Must start with https://. Leave blank to remove."
           />
         </div>
       </Modal>

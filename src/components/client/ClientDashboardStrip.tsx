@@ -5,14 +5,16 @@ import Badge from '@/components/admin/ui/Badge';
 import Button from '@/components/admin/ui/Button';
 import RequestChangesModal from './RequestChangesModal';
 import { recordClientAction } from '@/app/demo/actions';
+import type { Client } from '@/types/client';
 
 export interface ClientStripProps {
   client: {
     id: string;
     slug: string;
     business_name: string;
+    // https:// enforced at the server-action layer; still guard before window.open()
     payment_link_url: string | null;
-    status: 'demo' | 'paid' | 'archived';
+    status: Client['status'];
   };
   isAdmin: boolean;
 }
@@ -35,9 +37,11 @@ export default function ClientDashboardStrip({ client, isAdmin }: ClientStripPro
   }
 
   function handlePay() {
-    if (client.payment_link_url) {
-      window.open(client.payment_link_url, '_blank', 'noopener,noreferrer');
-    }
+    // Guard: only proceed if we actually have a URL (handles stale-prop edge case).
+    if (!client.payment_link_url) return;
+    // Additional defence: ensure it's https before opening
+    if (!client.payment_link_url.startsWith('https://')) return;
+    window.open(client.payment_link_url, '_blank', 'noopener,noreferrer');
     startTransition(async () => {
       await recordClientAction({ client_id: client.id, action: 'pay_clicked' });
     });
@@ -61,7 +65,7 @@ export default function ClientDashboardStrip({ client, isAdmin }: ClientStripPro
 
           <div className="flex items-center gap-2 shrink-0">
             {feedback && (
-              <span className={`text-xs hidden sm:block ${feedback.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+              <span className={`text-xs ${feedback.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
                 {feedback.msg}
               </span>
             )}
@@ -83,7 +87,7 @@ export default function ClientDashboardStrip({ client, isAdmin }: ClientStripPro
                 >
                   {pending ? 'Saving…' : 'Approve ✓'}
                 </Button>
-                {client.payment_link_url && (
+                {client.payment_link_url?.startsWith('https://') && (
                   <Button
                     size="sm"
                     onClick={handlePay}

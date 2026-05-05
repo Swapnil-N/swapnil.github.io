@@ -21,6 +21,19 @@ export async function recordClientAction({
   if (auth.profile.disabled) return { ok: false, error: 'Account disabled' };
 
   const supabase = await createClient();
+
+  // Verify the caller actually owns this client row before inserting.
+  // The RLS policy also blocks unauthorized inserts at the DB level, but an
+  // explicit check here gives a clear error and prevents logAudit from being
+  // called spuriously on failed attempts.
+  const { data: owned } = await supabase
+    .from('clients')
+    .select('id')
+    .eq('id', client_id)
+    .eq('owner_user_id', auth.user.id)
+    .maybeSingle();
+  if (!owned) return { ok: false, error: 'Not your demo' };
+
   const { error } = await supabase.from('client_actions').insert({
     client_id,
     user_id: auth.user.id,

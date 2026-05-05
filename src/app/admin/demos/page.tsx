@@ -13,7 +13,7 @@ export default async function AdminDemosPage() {
 
   const { data: clientsRaw } = await supabase
     .from('clients')
-    .select('*')
+    .select('id, slug, business_name, owner_user_id, status, payment_link_url, created_at, last_seen_at')
     .order('created_at', { ascending: false });
 
   const clients = (clientsRaw ?? []) as Client[];
