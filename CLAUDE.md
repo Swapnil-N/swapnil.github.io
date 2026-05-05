@@ -36,12 +36,21 @@ Currently on `main` branch.
 ```
 content/           — Content data (travel MDX, projects, resume, now)
 public/            — Static assets (images, models, fonts, favicon)
+  demo/{slug}/     — Per-demo assets (images, etc.)
+scripts/           — CLI scripts (new-demo.ts scaffold)
 src/app/           — Pages (Next.js App Router)
-src/components/    — React components by feature (three/, layout/, ui/, home/, travel/, about/, projects/, family-tree/)
-src/lib/           — Utilities (mdx.ts, supabase/)
-src/types/         — TypeScript types (family.ts)
+  admin/demos/     — Admin demo management pages
+  demo/{slug}/     — Per-client demo pages (each independently vibe-coded)
+src/components/    — React components by feature
+  client/          — Demo hosting: ClientDashboardStrip, RequestChangesModal
+  admin/ui/        — Admin UI primitives (Button, Modal, Table, etc.)
+src/lib/
+  demo/gate.ts     — gateDemo() server-only helper
+  auth/            — Permission helpers, audit logging
+  supabase/        — Client, server, middleware, admin factories
+src/types/         — TypeScript types (family.ts, admin.ts, client.ts)
 middleware.ts      — Next.js middleware (Supabase session refresh, route protection)
-supabase-schema.sql — Database schema (run in Supabase SQL editor)
+supabase-schema.sql — Database schema (run in Supabase SQL editor for fresh projects)
 ```
 
 ## Development Commands
@@ -83,10 +92,27 @@ supabase-schema.sql — Database schema (run in Supabase SQL editor)
 - **Service-role client**: `src/lib/supabase/admin.ts` — `createServiceRoleClient()` is server-only (`import 'server-only'`), per-request, throws `MissingServiceRoleKeyError` if env var missing. Used for `deleteUser`, `inviteUserByEmail`, `listUsers`.
 - **UI primitives**: `src/components/admin/ui/` — `Button`, `Input`, `Textarea`, `Select`, `Toggle`, `Table`, `Modal`, `ConfirmDialog`, `Badge`, `EmptyState`. Modals use fixed-position overlays (no portal). All admin/account pages use these — `/login` was intentionally left untouched in Phase 3 to avoid regressing working auth.
 
+## Phase 4 (Built): Client demo hosting
+
+- **Goal**: Host prospect demo sites at `/demo/{slug}` behind per-client auth, with a dashboard strip for Approve / Request Changes / Pay actions.
+- **Auth model**: A third system role `client` (all permissions false) is assigned when a client signs up via invitation. Clients can't access `/family-tree` (no `view_family_tree`) or `/admin`. Ownership is row-level (`clients.owner_user_id = auth.uid()`).
+- **Demo gate**: `src/lib/demo/gate.ts:gateDemo(slug)` — server-only helper called from each demo's `layout.tsx`. Checks auth, `disabled`, ownership (or admin bypass via `can_manage_users`), updates `last_seen_at`. Returns `{ client, isAdmin }`.
+- **Dashboard strip**: `src/components/client/ClientDashboardStrip.tsx` — `sticky top-16` client component (sits below the fixed site nav). Shows business name, status badges, and action buttons (Approve, Request Changes, Pay). `RequestChangesModal.tsx` for the feedback form.
+- **Client actions**: `src/app/demo/actions.ts:recordClientAction(...)` — server action, inserts into `client_actions` table and logs to `audit_log`.
+- **Admin demos dashboard**: `/admin/demos` — list, create, archive, mark paid, set Stripe payment link. Server actions in `src/app/admin/demos/actions.ts`. "Demos" added to `AdminSidebar`.
+- **Invite flow extended**: `sendInvitation` now accepts `{ email, role?, client_slug? }`. When `role='client'`, the DB trigger assigns the `client` role and binds `clients.owner_user_id` on signup.
+- **Scaffold script**: `npm run new-demo -- --slug=acme --name="Acme Bakery"` creates the folder (`src/app/demo/{slug}/layout.tsx` + `page.tsx`) and `public/demo/{slug}/`. Does NOT touch the DB — create the row via `/admin/demos` first.
+- **Middleware**: `/demo/:path*` added to the matcher and `protectedPaths`. Auth + disabled check apply as for all protected routes.
+- **Isolation rules**: Each demo lives entirely in `src/app/demo/{slug}/` + `public/demo/{slug}/`. May import `src/components/client/*` and `src/components/admin/ui/*`. Must NOT import from another demo or add to shared component folders for demo-specific needs.
+- **Graduation workflow (manual)**: Copy `src/app/demo/{slug}/` and `public/demo/{slug}/` to a new repo, strip the `gateDemo()` layout wrapper, create a new Vercel project, attach the custom domain, then `markPaid(id)`.
+- **New types**: `src/types/client.ts` — `Client`, `ClientAction`. `Invitation` in `src/types/family.ts` gained `role_id` and `client_slug` fields.
+- **New DB tables**: `clients` (slug, business_name, owner_user_id, status, payment_link_url, last_seen_at) and `client_actions` (client_id, action, message). Both have RLS enabled.
+
 ## TODOs
 
 - Add travel photos to `public/images/travel/{slug}/`
 - Personalize placeholder trip descriptions in MDX files
+- Add first client demo under `src/app/demo/{slug}/` when ready
 
 ## Common Pitfalls
 
@@ -100,3 +126,7 @@ supabase-schema.sql — Database schema (run in Supabase SQL editor)
 - Do NOT delete or rename system roles (`admin`, `family_member`) — guarded by trigger.
 - `profiles.role` text column NO LONGER exists. Use `profiles.role_id` joined to `roles`. The `getCurrentUserWithRole()` helper returns the joined shape.
 - After an admin changes user X's role, X's in-memory `role` context stays stale until they refresh. RLS reads from the DB so data access is correct, but UI affordances may lag for that session.
+- `src/lib/demo/gate.ts` has `import 'server-only'`. Never import `DemoGateResult` into client components — define the props inline.
+- Each demo's `layout.tsx` MUST include `export const dynamic = 'force-dynamic'` since it queries the DB on every request.
+- Demos MUST NOT import from each other — each folder is fully self-contained so it can be cleanly cut into a graduation repo.
+- Do NOT edit `src/app/globals.css` for a demo. Use Tailwind classes inline or a co-located `*.module.css`.

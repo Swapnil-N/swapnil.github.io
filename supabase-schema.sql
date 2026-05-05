@@ -1,5 +1,5 @@
 -- ============================================================================
--- Phase 3 schema: granular permissions, soft-disable, audit log.
+-- Phase 3 + Demo hosting schema.
 -- Apply against a fresh Supabase project. For incremental migrations against
 -- an existing database, use the Supabase MCP `apply_migration` tool with the
 -- migrations under public.supabase_migrations.schema_migrations.
@@ -324,3 +324,121 @@ drop policy if exists "audit_log_select_admin" on public.audit_log;
 create policy "audit_log_select_admin" on public.audit_log for select using (public.has_permission('view_audit_log'));
 drop policy if exists "audit_log_insert_self" on public.audit_log;
 create policy "audit_log_insert_self" on public.audit_log for insert with check (actor_id = (select auth.uid()));
+
+-- ============================================================================
+-- Demo hosting (Phase 4)
+-- ============================================================================
+
+-- System role for external clients — no permissions, purely a label.
+insert into public.roles (name, description, is_system, can_view_family_tree)
+values ('client', 'External client viewing their demo', true, false)
+on conflict (name) do nothing;
+
+-- ============================================================================
+-- Clients
+-- ============================================================================
+
+create table if not exists public.clients (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  business_name text not null,
+  owner_user_id uuid references auth.users(id) on delete set null,
+  status text not null default 'demo'
+    check (status in ('demo', 'paid', 'archived')),
+  payment_link_url text,
+  notes text,
+  created_at timestamptz default now(),
+  last_seen_at timestamptz
+);
+
+create index if not exists clients_owner_user_id_idx on public.clients (owner_user_id);
+
+alter table public.clients enable row level security;
+
+create policy clients_select on public.clients for select
+  using (
+    owner_user_id = (select auth.uid())
+    or has_permission('manage_users')
+  );
+create policy clients_insert on public.clients for insert
+  with check (has_permission('manage_users'));
+create policy clients_update on public.clients for update
+  using (has_permission('manage_users'))
+  with check (has_permission('manage_users'));
+create policy clients_delete on public.clients for delete
+  using (has_permission('manage_users'));
+
+-- ============================================================================
+-- Client actions (prospect interactions)
+-- ============================================================================
+
+create table if not exists public.client_actions (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid references public.clients(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete set null,
+  action text not null check (action in ('approve', 'request_changes', 'pay_clicked')),
+  message text,
+  created_at timestamptz default now()
+);
+
+create index if not exists client_actions_client_id_idx on public.client_actions (client_id);
+
+alter table public.client_actions enable row level security;
+
+-- Owner can record their own actions; admins read all.
+create policy client_actions_insert on public.client_actions for insert
+  with check (
+    exists (
+      select 1 from public.clients c
+      where c.id = client_id and c.owner_user_id = (select auth.uid())
+    )
+  );
+create policy client_actions_select on public.client_actions for select
+  using (has_permission('manage_users'));
+
+-- ============================================================================
+-- Extend invitations for client demo access
+-- ============================================================================
+
+-- role_id: if set, the new user is assigned this role instead of family_member.
+-- client_slug: if set, the new user becomes owner of this client's demo.
+alter table public.invitations
+  add column if not exists role_id uuid references public.roles(id),
+  add column if not exists client_slug text references public.clients(slug);
+
+-- Updated trigger honors invitation role and binds client ownership.
+create or replace function public.handle_new_user() returns trigger as $$
+declare
+  inv         public.invitations%rowtype;
+  chosen_role uuid;
+begin
+  select * into inv from public.invitations
+   where email = new.email and status = 'pending' limit 1;
+
+  if inv.id is null then
+    raise exception 'Signup is invite-only. Ask an admin to send you an invitation.'
+      using errcode = 'P0001';
+  end if;
+
+  if inv.role_id is not null then
+    chosen_role := inv.role_id;
+  else
+    select id into chosen_role from public.roles where name = 'family_member' limit 1;
+  end if;
+  if chosen_role is null then
+    raise exception 'no role available for new user';
+  end if;
+
+  insert into public.profiles (id, email, display_name, role_id)
+  values (new.id, new.email, new.raw_user_meta_data->>'display_name', chosen_role);
+
+  if inv.client_slug is not null then
+    update public.clients set owner_user_id = new.id where slug = inv.client_slug;
+  end if;
+
+  update public.invitations set status = 'accepted' where email = new.email;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public, pg_catalog, auth;
+
+revoke execute on function public.handle_new_user() from anon, authenticated, public;
