@@ -1,9 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { createClient } from '@/lib/supabase/client';
+import { roleHasPermission } from '@/lib/auth/permissions.client';
+import { ADMIN_PERMISSIONS } from '@/lib/auth/admin-permissions';
 
 const links = [
   { href: '/', label: 'Home' },
@@ -14,12 +18,84 @@ const links = [
 
 export default function Nav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const auth = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const showAdmin = !!auth?.role && ADMIN_PERMISSIONS.some((p) => roleHasPermission(auth.role, p));
+  const showFamilyTree = !!auth?.role && roleHasPermission(auth.role, 'view_family_tree');
+  const visibleLinks = showFamilyTree
+    ? [...links, { href: '/family-tree', label: 'Family Tree' }]
+    : links;
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signOut();
+      if (error) return;
+      setMobileOpen(false);
+      router.replace('/');
+      router.refresh();
+    } finally {
+      setSigningOut(false);
+    }
+  }
+
+  function renderAuthControls(closeMenu?: () => void) {
+    if (!auth) {
+      return (
+        <Link
+          href="/login"
+          onClick={closeMenu}
+          className={`text-sm transition-colors ${
+            pathname === '/login' ? 'text-primary' : 'text-muted hover:text-primary'
+          }`}
+        >
+          Login
+        </Link>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-4">
+        {showAdmin && (
+          <Link
+            href="/admin"
+            onClick={closeMenu}
+            className={`text-sm transition-colors ${
+              pathname.startsWith('/admin') ? 'text-primary' : 'text-muted hover:text-primary'
+            }`}
+          >
+            Admin
+          </Link>
+        )}
+        <Link
+          href="/account"
+          onClick={closeMenu}
+          className={`text-sm transition-colors ${
+            pathname.startsWith('/account') ? 'text-primary' : 'text-muted hover:text-primary'
+          }`}
+          title={auth.profile.email}
+        >
+          {auth.profile.display_name ?? 'Account'}
+        </Link>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          disabled={signingOut}
+          className="text-sm text-muted hover:text-primary transition-colors disabled:opacity-50"
+        >
+          {signingOut ? 'Signing out…' : 'Log out'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-md border-b border-border">
       <div className="mx-auto max-w-6xl flex items-center justify-between px-4 h-16">
-        {/* Logo */}
         <Link
           href="/"
           className="text-xl font-bold tracking-tight text-primary font-heading"
@@ -27,18 +103,15 @@ export default function Nav() {
           SN
         </Link>
 
-        {/* Desktop links */}
         <div className="hidden md:flex items-center gap-6">
-          {links.map((link) => {
+          {visibleLinks.map((link) => {
             const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href);
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 className={`relative py-1 text-sm transition-colors ${
-                  isActive
-                    ? 'text-primary'
-                    : 'text-foreground hover:text-primary'
+                  isActive ? 'text-primary' : 'text-foreground hover:text-primary'
                 }`}
               >
                 {link.label}
@@ -53,19 +126,9 @@ export default function Nav() {
             );
           })}
           <span className="text-border select-none">|</span>
-          <Link
-            href="/login"
-            className={`text-sm transition-colors ${
-              pathname === '/login'
-                ? 'text-primary'
-                : 'text-muted hover:text-primary'
-            }`}
-          >
-            Login
-          </Link>
+          {renderAuthControls()}
         </div>
 
-        {/* Mobile hamburger */}
         <div className="flex md:hidden items-center gap-2">
           <button
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
@@ -74,27 +137,18 @@ export default function Nav() {
           >
             <motion.span
               className="block h-0.5 w-5 bg-foreground rounded-full absolute"
-              animate={
-                mobileOpen
-                  ? { rotate: 45, y: 0 }
-                  : { rotate: 0, y: -4 }
-              }
+              animate={mobileOpen ? { rotate: 45, y: 0 } : { rotate: 0, y: -4 }}
               transition={{ duration: 0.25 }}
             />
             <motion.span
               className="block h-0.5 w-5 bg-foreground rounded-full absolute"
-              animate={
-                mobileOpen
-                  ? { rotate: -45, y: 0 }
-                  : { rotate: 0, y: 4 }
-              }
+              animate={mobileOpen ? { rotate: -45, y: 0 } : { rotate: 0, y: 4 }}
               transition={{ duration: 0.25 }}
             />
           </button>
         </div>
       </div>
 
-      {/* Mobile dropdown */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -105,7 +159,7 @@ export default function Nav() {
             className="md:hidden overflow-hidden border-b border-border bg-surface/95 backdrop-blur-md"
           >
             <div className="flex flex-col px-4 py-4 gap-1">
-              {links.map((link) => {
+              {visibleLinks.map((link) => {
                 const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href);
                 return (
                   <Link
@@ -122,18 +176,47 @@ export default function Nav() {
                   </Link>
                 );
               })}
-              <div className="border-t border-border mt-2 pt-2">
-                <Link
-                  href="/login"
-                  onClick={() => setMobileOpen(false)}
-                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                    pathname === '/login'
-                      ? 'text-primary bg-primary/10'
-                      : 'text-muted hover:text-primary hover:bg-border'
-                  }`}
-                >
-                  Login
-                </Link>
+              <div className="border-t border-border mt-2 pt-2 flex flex-col gap-1">
+                {auth ? (
+                  <>
+                    {showAdmin && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setMobileOpen(false)}
+                        className="block px-3 py-2 rounded-lg text-sm text-muted hover:text-primary hover:bg-border transition-colors"
+                      >
+                        Admin
+                      </Link>
+                    )}
+                    <Link
+                      href="/account"
+                      onClick={() => setMobileOpen(false)}
+                      className="block px-3 py-2 rounded-lg text-sm text-muted hover:text-primary hover:bg-border transition-colors"
+                    >
+                      {auth.profile.display_name ?? 'Account'}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      disabled={signingOut}
+                      className="text-left block px-3 py-2 rounded-lg text-sm text-muted hover:text-primary hover:bg-border transition-colors disabled:opacity-50"
+                    >
+                      {signingOut ? 'Signing out…' : 'Log out'}
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                      pathname === '/login'
+                        ? 'text-primary bg-primary/10'
+                        : 'text-muted hover:text-primary hover:bg-border'
+                    }`}
+                  >
+                    Login
+                  </Link>
+                )}
               </div>
             </div>
           </motion.div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import PageTransition from '@/components/layout/PageTransition';
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
 
   const urlError = searchParams.get('error');
@@ -25,42 +27,62 @@ export default function LoginPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
 
     const supabase = createClient();
 
-    if (mode === 'signin') {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (signInError) {
-        setError(signInError.message);
-        setLoading(false);
+    try {
+      if (mode === 'signin') {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          setError(signInError.message);
+          return;
+        }
+        router.refresh();
+        router.push(redirectTo);
         return;
       }
-    } else {
-      const { error: signUpError } = await supabase.auth.signUp({
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { display_name: displayName },
-        },
+        options: { data: { display_name: displayName } },
       });
       if (signUpError) {
-        setError(signUpError.message);
-        setLoading(false);
+        // The handle_new_user trigger raises if the email isn't in the
+        // invitations table. Supabase wraps the message inconsistently, so
+        // sniff for either the trigger text or its generic fallback.
+        const msg = signUpError.message.toLowerCase();
+        if (msg.includes('invite-only') || msg.includes('database error saving new user')) {
+          setError('This site is invite-only. Ask an admin to send you an invite.');
+        } else {
+          setError(signUpError.message);
+        }
         return;
       }
-    }
 
-    router.refresh();
-    router.push(redirectTo);
+      // Two paths back from signUp:
+      // 1. Email confirmation required → session is null, user must click link.
+      // 2. Auto-confirm enabled → session is set immediately, sign them in.
+      if (data.session) {
+        router.refresh();
+        router.push(redirectTo);
+        return;
+      }
+
+      setInfo(`Account created. Check ${email} for a confirmation link, then sign in.`);
+      setMode('signin');
+      setPassword('');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function toggleMode() {
     setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
     setError('');
+    setInfo('');
   }
 
   return (
@@ -72,12 +94,33 @@ export default function LoginPage() {
         <p className="text-muted mb-10">
           {mode === 'signin'
             ? 'Welcome back. Sign in to continue.'
-            : 'Create an account to get started.'}
+            : 'This site is invite-only. Sign up using the email an admin invited.'}
         </p>
 
         {(error || urlError) && (
           <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-400 text-sm">
-            {error || (urlError === 'auth_failed' ? 'Authentication failed. Please try again.' : urlError)}
+            {error
+              || (urlError === 'auth_failed' && 'Authentication failed. Please try again.')
+              || (urlError === 'disabled' && 'Your account has been disabled. Contact an admin.')
+              || (urlError === 'otp_expired' && (
+                <>
+                  Your reset link expired or was already used.{' '}
+                  <Link href="/forgot-password" className="underline">Request a new one.</Link>
+                </>
+              ))
+              || (urlError === 'access_denied' && (
+                <>
+                  This link is no longer valid.{' '}
+                  <Link href="/forgot-password" className="underline">Request a new reset link.</Link>
+                </>
+              ))
+              || urlError}
+          </div>
+        )}
+
+        {info && (
+          <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-emerald-300 text-sm">
+            {info}
           </div>
         )}
 
@@ -134,12 +177,18 @@ export default function LoginPage() {
             className="w-full rounded-xl bg-primary text-white font-medium py-3 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading
-              ? 'Loading...'
-              : mode === 'signin'
-                ? 'Sign In'
-                : 'Create Account'}
+              ? mode === 'signin' ? 'Signing in…' : 'Creating account…'
+              : mode === 'signin' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
+
+        {mode === 'signin' && (
+          <p className="mt-4 text-center text-sm">
+            <Link href="/forgot-password" className="text-muted hover:text-primary transition-colors">
+              Forgot password?
+            </Link>
+          </p>
+        )}
 
         <p className="mt-8 text-center text-sm text-muted">
           {mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}{' '}

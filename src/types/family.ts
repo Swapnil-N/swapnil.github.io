@@ -21,7 +21,8 @@ export interface Profile {
   id: string;
   email: string;
   display_name: string | null;
-  role: 'admin' | 'family_member';
+  role_id: string;
+  disabled: boolean;
   invited_by: string | null;
   created_at: string;
 }

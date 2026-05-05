@@ -1,6 +1,6 @@
 # swapnil.github.io
 
-Personal website built with Next.js 16 (App Router) featuring an interactive particle field hero, travel globe with 17 trips, resume page, and contact form.
+Personal website built with Next.js 16 (App Router) featuring an interactive particle field hero, travel globe with 17 trips, resume page, contact form, an invite-only family tree, and an admin dashboard with granular role-based permissions.
 
 ## Tech Stack
 
@@ -46,8 +46,11 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ```
 src/
   app/          — Pages and API routes (Next.js App Router)
+                  Admin dashboard at /admin (gated by granular permissions);
+                  account self-service at /account.
   components/   — React components organized by feature
-  lib/          — Utility functions (MDX processing, Supabase clients)
+                  (admin/ui primitives are reusable across the dashboard)
+  lib/          — Utility functions (MDX, Supabase clients, auth helpers)
   types/        — TypeScript types
 content/
   travel/       — Travel trip MDX files and _meta.ts index
@@ -58,7 +61,7 @@ public/
   images/       — Static images (travel photos, etc.)
   models/       — 3D assets (earth texture)
 middleware.ts   — Supabase session refresh + route protection
-supabase-schema.sql — Database schema for auth + family tree
+supabase-schema.sql — Database schema for auth + family tree + admin
 ```
 
 ## Content Management
@@ -89,6 +92,7 @@ Copy `.env.local.example` to `.env.local` and fill in the values:
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (required for auth + family tree). |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous/public key. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only service-role key. Required for the admin dashboard (hard-deleting users, sending invite emails, reading last-sign-in). |
 
 ## Development Commands
 

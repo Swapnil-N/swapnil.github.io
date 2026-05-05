@@ -1,20 +1,31 @@
-import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { getCurrentUserWithRole } from '@/lib/auth/permissions';
 import FamilyTreeView from '@/components/family-tree/FamilyTreeView';
 import PageTransition from '@/components/layout/PageTransition';
+import ManagePanel from './ManagePanel';
+import type { Person, Relationship } from '@/types/family';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FamilyTreePage() {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const auth = await getCurrentUserWithRole();
+  if (!auth) {
     redirect('/login?redirect=/family-tree');
   }
+  if (!auth.role.can_view_family_tree) {
+    redirect('/');
+  }
 
-  const { data: people } = await supabase.from('people').select('*');
-  const { data: relationships } = await supabase.from('relationships').select('*');
+  const supabase = await createClient();
+  const [{ data: peopleData }, { data: relData }] = await Promise.all([
+    supabase.from('people').select('*').order('first_name'),
+    supabase.from('relationships').select('*'),
+  ]);
+  const people = (peopleData ?? []) as Person[];
+  const relationships = (relData ?? []) as Relationship[];
+
+  const canEdit = auth.role.can_edit_family_tree;
 
   return (
     <PageTransition>
@@ -29,11 +40,12 @@ export default async function FamilyTreePage() {
         </div>
 
         <div className="h-[calc(100vh-200px)] w-full">
-          <FamilyTreeView
-            people={people ?? []}
-            relationships={relationships ?? []}
-          />
+          <FamilyTreeView people={people} relationships={relationships} />
         </div>
+
+        {canEdit && (
+          <ManagePanel people={people} relationships={relationships} />
+        )}
       </div>
     </PageTransition>
   );
