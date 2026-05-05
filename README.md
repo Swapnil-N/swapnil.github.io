@@ -1,6 +1,6 @@
 # swapnil.github.io
 
-Personal website built with Next.js 16 (App Router) featuring an interactive particle field hero, travel globe with 17 trips, resume page, contact form, an invite-only family tree, and an admin dashboard with granular role-based permissions.
+Personal website built with Next.js 16 (App Router) featuring an interactive particle field hero, travel globe with 17 trips, resume page, contact form, an invite-only family tree, an admin dashboard with granular role-based permissions, and multi-tenant client demo hosting at `/demo/{slug}`.
 
 ## Tech Stack
 
@@ -45,23 +45,24 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ```
 src/
-  app/          — Pages and API routes (Next.js App Router)
+  app/          — Pages and routes (Next.js App Router).
                   Admin dashboard at /admin (gated by granular permissions);
-                  account self-service at /account.
-  components/   — React components organized by feature
-                  (admin/ui primitives are reusable across the dashboard)
-  lib/          — Utility functions (MDX, Supabase clients, auth helpers)
-  types/        — TypeScript types
-content/
-  travel/       — Travel trip MDX files and _meta.ts index
-  projects.ts   — Project portfolio data
-  resume.ts     — Work experience, skills, and education data
-  now.ts        — "Currently" section data
+                  account self-service at /account; client demos at /demo/{slug}.
+  components/
+    admin/ui/   — Reusable primitives (Button, Modal, Table, etc.)
+    client/    — Demo dashboard strip + request-changes modal
+  lib/
+    auth/       — Permission helpers, audit logging
+    demo/       — gateDemo() server-only auth gate
+    supabase/   — Client, server, middleware, admin factories
+  types/        — TypeScript types (family.ts, client.ts, admin.ts)
+content/        — Travel MDX, projects, resume, now
 public/
-  images/       — Static images (travel photos, etc.)
-  models/       — 3D assets (earth texture)
+  demo/{slug}/  — Per-demo static assets
+scripts/
+  new-demo.ts   — Scaffold script for new client demos
 middleware.ts   — Supabase session refresh + route protection
-supabase-schema.sql — Database schema for auth + family tree + admin
+supabase-schema.sql — Database schema (run in fresh Supabase projects)
 ```
 
 ## Content Management
@@ -84,6 +85,21 @@ Edit `content/now.ts` to change what appears in the "Currently" section on the h
 
 Edit `content/resume.ts` to update experiences, skills, or education.
 
+## Client Demo Hosting
+
+Spin up a demo site at `swapnil.dev/demo/{slug}` behind per-client auth, then graduate paying clients into their own repo + Vercel project + custom domain.
+
+```bash
+# 1. Create the DB record via /admin/demos (admin UI), then scaffold the folder:
+npm run new-demo -- --slug=acme-bakery --name="Acme Bakery"
+
+# 2. Vibe-code the demo in src/app/demo/acme-bakery/
+# 3. Invite the client via /admin/invitations (role=Client, demo=acme-bakery)
+# 4. Set a Stripe payment link via /admin/demos when ready to collect payment
+```
+
+Each demo lives entirely in `src/app/demo/{slug}/` + `public/demo/{slug}/` so it can be cleanly cut and pasted into a graduation repo. The shared `gateDemo()` wrapper in `src/lib/demo/gate.ts` enforces auth and ownership; admins can preview any demo.
+
 ## Environment Variables
 
 Copy `.env.local.example` to `.env.local` and fill in the values:
@@ -102,6 +118,7 @@ Copy `.env.local.example` to `.env.local` and fill in the values:
 | `npm run build` | Create a production build |
 | `npm run lint` | Run ESLint |
 | `npm start` | Start the production server |
+| `npm run new-demo -- --slug=foo --name="Foo Co"` | Scaffold a new client demo folder |
 
 ## Deployment
 
