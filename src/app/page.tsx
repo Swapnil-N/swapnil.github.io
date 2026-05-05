@@ -19,13 +19,23 @@ export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Supabase redirects auth verify failures to the Site URL. Catch them and
-  // route to /login with a useful error code. The same payload also lands in
-  // the URL hash, but the query is sufficient.
+  // Supabase auth flows can land here in two ways:
+  // 1. Verify success: redirect_to fell back to Site URL because the
+  //    requested redirect didn't match the allowlist. Comes with ?code=<pkce>.
+  //    Forward to /auth/callback so the code gets exchanged into a session.
+  // 2. Verify failure: error info in ?error_code=. Forward to /login.
+  // Hash variants of both also exist; the query-string check is sufficient.
   useEffect(() => {
     const errorCode = searchParams.get('error_code');
     if (errorCode) {
       router.replace(`/login?error=${errorCode}`);
+      return;
+    }
+    const code = searchParams.get('code');
+    if (code) {
+      // The only flow that emails our users is password recovery. If that
+      // assumption changes, route based on Supabase's `type` query.
+      router.replace(`/auth/callback?code=${encodeURIComponent(code)}&next=/reset-password`);
     }
   }, [router, searchParams]);
 
