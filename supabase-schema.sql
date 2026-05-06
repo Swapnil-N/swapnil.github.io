@@ -1,5 +1,5 @@
 -- ============================================================================
--- Phase 3 schema: granular permissions, soft-disable, audit log.
+-- Phase 3 + Demo hosting schema.
 -- Apply against a fresh Supabase project. For incremental migrations against
 -- an existing database, use the Supabase MCP `apply_migration` tool with the
 -- migrations under public.supabase_migrations.schema_migrations.
@@ -53,13 +53,31 @@ alter table public.profiles enable row level security;
 -- Invitations
 -- ============================================================================
 
+-- email is NOT unique here. Pending invites are de-duped via partial unique
+-- indexes further down (one pending family invite per email; one pending demo
+-- invite per (email, client_slug) pair). Accepted/historical rows can co-exist.
 create table if not exists public.invitations (
   id uuid primary key default gen_random_uuid(),
-  email text not null unique,
+  email text not null,
   invited_by uuid references public.profiles(id) not null,
   status text check (status in ('pending', 'accepted')) default 'pending',
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  -- Demo-hosting columns (added in Phase 4):
+  role_id uuid references public.roles(id),
+  client_slug text references public.clients(slug)
 );
+
+create unique index if not exists invitations_email_pending_family_unique
+  on public.invitations (email)
+  where status = 'pending' and client_slug is null;
+
+create unique index if not exists invitations_email_slug_pending_unique
+  on public.invitations (email, client_slug)
+  where status = 'pending' and client_slug is not null;
+
+create index if not exists invitations_client_slug_idx
+  on public.invitations (client_slug)
+  where client_slug is not null;
 
 alter table public.invitations enable row level security;
 
@@ -145,44 +163,86 @@ $$ language sql security definer stable set search_path = public, pg_catalog;
 -- Safe because the function filters on auth.uid() and only returns the
 -- caller's own permissions.
 
--- Back-compat wrapper: an admin has both manage_users and manage_roles.
-create or replace function public.is_admin() returns boolean as $$
-  select public.has_permission('manage_users') and public.has_permission('manage_roles');
-$$ language sql security definer stable set search_path = public, pg_catalog;
-
 -- ============================================================================
 -- Triggers
 -- ============================================================================
 
--- Auto-create profile on signup. Enforces invite-only access at the database
--- level: signups whose email isn't in the invitations table are rejected and
--- the auth.users insert rolls back with the rest of the transaction.
-create or replace function public.handle_new_user() returns trigger as $$
+-- _provision_invitee: shared helper called by handle_new_user (auto-confirm
+-- path) and handle_user_confirmed (normal invite-then-click flow). Iterates
+-- every pending invitation for the email so a single signup binds access to
+-- every demo the user was invited to. Creates the profile once, marks all
+-- matching invitations accepted. NOTE: depends on tables (clients,
+-- client_access) defined later in this file — the function body is parsed
+-- lazily so order is OK.
+create or replace function public._provision_invitee(p_user_id uuid, p_email text, p_display_name text)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
 declare
-  default_role_id uuid;
-  has_invite boolean;
+  inv         public.invitations%rowtype;
+  chosen_role uuid;
+  client_uuid uuid;
+  has_invite  boolean := false;
 begin
-  select exists (
-    select 1 from public.invitations where email = new.email
-  ) into has_invite;
-  if not has_invite then
+  for inv in
+    select * from public.invitations
+     where email = p_email and status = 'pending'
+     order by created_at
+  loop
+    has_invite := true;
+
+    -- First invitation's role wins (or family_member by default).
+    if chosen_role is null then
+      if inv.role_id is not null then
+        chosen_role := inv.role_id;
+      else
+        select id into chosen_role from public.roles where name = 'family_member' limit 1;
+      end if;
+    end if;
+
+    if inv.client_slug is not null then
+      select id into client_uuid from public.clients where slug = inv.client_slug limit 1;
+      if client_uuid is not null then
+        insert into public.client_access (client_id, user_id)
+        values (client_uuid, p_user_id)
+        on conflict (client_id, user_id) do nothing;
+      end if;
+    end if;
+
+    update public.invitations set status = 'accepted' where id = inv.id;
+  end loop;
+
+  if not has_invite then return; end if;
+  if chosen_role is null then
+    raise exception 'no role available for new user';
+  end if;
+
+  insert into public.profiles (id, email, display_name, role_id)
+  values (p_user_id, p_email, p_display_name, chosen_role)
+  on conflict (id) do nothing;
+end;
+$$;
+
+revoke execute on function public._provision_invitee(uuid, text, text) from anon, authenticated, public;
+
+-- handle_new_user: enforce invite-only gate; provision immediately if
+-- email_confirmed_at is already set on insert (auto-confirm path).
+create or replace function public.handle_new_user() returns trigger as $$
+begin
+  if not exists (
+    select 1 from public.invitations
+     where email = new.email and status = 'pending'
+  ) then
     raise exception 'Signup is invite-only. Ask an admin to send you an invitation.'
       using errcode = 'P0001';
   end if;
 
-  select id into default_role_id from public.roles where name = 'family_member' limit 1;
-  if default_role_id is null then
-    raise exception 'family_member role missing — cannot create profile';
+  if new.email_confirmed_at is not null then
+    perform public._provision_invitee(new.id, new.email, new.raw_user_meta_data->>'display_name');
   end if;
 
-  insert into public.profiles (id, email, display_name, role_id)
-  values (
-    new.id,
-    new.email,
-    new.raw_user_meta_data->>'display_name',
-    default_role_id
-  );
-  update public.invitations set status = 'accepted' where email = new.email;
   return new;
 end;
 $$ language plpgsql security definer set search_path = public, pg_catalog, auth;
@@ -192,6 +252,24 @@ revoke execute on function public.handle_new_user() from anon, authenticated, pu
 create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- handle_user_confirmed: provision when email_confirmed_at flips NULL → NOT NULL
+-- (the user clicked their confirmation link).
+create or replace function public.handle_user_confirmed() returns trigger as $$
+begin
+  if old.email_confirmed_at is null and new.email_confirmed_at is not null then
+    perform public._provision_invitee(new.id, new.email, new.raw_user_meta_data->>'display_name');
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public, pg_catalog, auth;
+
+revoke execute on function public.handle_user_confirmed() from anon, authenticated, public;
+
+drop trigger if exists on_auth_user_email_confirmed on auth.users;
+create trigger on_auth_user_email_confirmed
+  after update of email_confirmed_at on auth.users
+  for each row execute function public.handle_user_confirmed();
 
 -- Block any user from changing their own role_id or disabled flag through the
 -- self-update path on profiles. An admin demoting themselves to a less-
@@ -310,8 +388,19 @@ drop policy if exists "relationships_delete_admin" on public.relationships;
 create policy "relationships_delete_admin" on public.relationships for delete using (public.has_permission('edit_family_tree'));
 
 -- roles
+-- A user can read THEIR OWN role row (so AuthProvider's profile-with-role
+-- join works for clients) — and admins (manage_roles or manage_users) can
+-- read all rows. Other users can't enumerate role names + permission flags.
 drop policy if exists "roles_select_authed" on public.roles;
-create policy "roles_select_authed" on public.roles for select using ((select auth.uid()) is not null);
+drop policy if exists "roles_select_self_or_admin" on public.roles;
+create policy "roles_select_self_or_admin" on public.roles for select using (
+  exists (
+    select 1 from public.profiles p
+     where p.id = (select auth.uid()) and p.role_id = roles.id
+  )
+  or public.has_permission('manage_roles')
+  or public.has_permission('manage_users')
+);
 drop policy if exists "roles_insert_admin" on public.roles;
 create policy "roles_insert_admin" on public.roles for insert with check (public.has_permission('manage_roles'));
 drop policy if exists "roles_update_admin" on public.roles;
@@ -324,3 +413,126 @@ drop policy if exists "audit_log_select_admin" on public.audit_log;
 create policy "audit_log_select_admin" on public.audit_log for select using (public.has_permission('view_audit_log'));
 drop policy if exists "audit_log_insert_self" on public.audit_log;
 create policy "audit_log_insert_self" on public.audit_log for insert with check (actor_id = (select auth.uid()));
+
+-- ============================================================================
+-- Demo hosting (Phase 4)
+-- ============================================================================
+
+-- System role for external clients — no permissions, purely a label.
+insert into public.roles (name, description, is_system, can_view_family_tree)
+values ('client', 'External client viewing their demo', true, false)
+on conflict (name) do nothing;
+
+-- ============================================================================
+-- Clients
+-- ============================================================================
+
+create table if not exists public.clients (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  business_name text not null,
+  status text not null default 'demo'
+    check (status in ('demo', 'paid', 'archived')),
+  payment_link_url text,
+  notes text,
+  created_at timestamptz default now(),
+  last_seen_at timestamptz
+);
+
+alter table public.clients enable row level security;
+
+-- Visibility: admins see all, users see clients they have an access row for.
+create policy clients_select on public.clients for select using (
+  has_permission('manage_users') or exists (
+    select 1 from public.client_access ca
+     where ca.client_id = clients.id and ca.user_id = (select auth.uid())
+  )
+);
+create policy clients_insert on public.clients for insert
+  with check (has_permission('manage_users'));
+create policy clients_update on public.clients for update
+  using (has_permission('manage_users'))
+  with check (has_permission('manage_users'));
+create policy clients_delete on public.clients for delete
+  using (has_permission('manage_users'));
+
+-- ============================================================================
+-- Client access (many-to-many: which users can view which demos)
+-- ============================================================================
+-- Source of truth for demo visibility. Admins bypass via has_permission.
+
+create table if not exists public.client_access (
+  client_id uuid references public.clients(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  granted_by uuid references public.profiles(id) on delete set null,
+  granted_at timestamptz default now() not null,
+  primary key (client_id, user_id)
+);
+
+create index if not exists client_access_user_id_idx on public.client_access (user_id);
+
+alter table public.client_access enable row level security;
+
+create policy client_access_select on public.client_access for select using (
+  user_id = (select auth.uid()) or has_permission('manage_users')
+);
+create policy client_access_modify on public.client_access for all
+  using (has_permission('manage_users'))
+  with check (has_permission('manage_users'));
+
+-- ============================================================================
+-- Client actions (prospect interactions)
+-- ============================================================================
+
+create table if not exists public.client_actions (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid references public.clients(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete set null,
+  action text not null check (action in ('approve', 'request_changes', 'pay_clicked')),
+  message text,
+  created_at timestamptz default now()
+);
+
+create index if not exists client_actions_client_id_idx on public.client_actions (client_id);
+create index if not exists client_actions_user_id_idx on public.client_actions (user_id);
+
+alter table public.client_actions enable row level security;
+
+-- Users with access can record their own actions; admins read all.
+create policy client_actions_insert on public.client_actions for insert
+  with check (
+    exists (
+      select 1 from public.client_access ca
+       where ca.client_id = client_actions.client_id
+         and ca.user_id = (select auth.uid())
+    )
+  );
+create policy client_actions_select on public.client_actions for select
+  using (has_permission('manage_users'));
+
+-- ============================================================================
+-- touch_demo_last_seen — SECURITY DEFINER helper for last_seen_at tracking
+-- ============================================================================
+-- Updates last_seen_at only when the caller has a client_access row for the
+-- given slug. SECURITY DEFINER lets us avoid granting a blanket UPDATE policy
+-- to the client role.
+
+create or replace function public.touch_demo_last_seen(p_slug text)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+begin
+  update public.clients
+     set last_seen_at = now()
+   where slug = p_slug
+     and exists (
+       select 1 from public.client_access ca
+        where ca.client_id = clients.id and ca.user_id = auth.uid()
+     );
+end;
+$$;
+
+revoke execute on function public.touch_demo_last_seen(text) from public, anon;
+grant  execute on function public.touch_demo_last_seen(text) to authenticated;

@@ -22,7 +22,7 @@ Currently on `main` branch.
 ## Key Architecture Decisions
 
 - **Tailwind v4**: No `tailwind.config.ts`. Colors are defined as CSS variables in `:root` of `globals.css`, then mapped to Tailwind tokens via the `@theme inline` block. Use `text-primary`, `bg-surface`, `text-foreground`, `text-muted`, etc. NEVER use `text-[var(--color-*)]` arbitrary value syntax.
-- **Dark mode only**: No light mode. No `next-themes`. No `data-theme` attribute. The site is always dark.
+- **Dark mode is the site default**: Site pages are dark only. Client demos have full theming flexibility — use any inline Tailwind colors, opt into the shared light palette via `<div data-theme="light">` (defined in `globals.css`, makes the existing tokens cascade to light values), co-locate a CSS module, or set custom CSS vars on a wrapper. The dashboard strip stays site-themed regardless.
 - **3D components**: All React Three Fiber components live in `src/components/three/` and MUST be dynamically imported with `ssr: false`.
 - **Content**: Public content lives in the `content/` directory (travel MDX files, `projects.ts`, `now.ts`, `resume.ts`). Use the `@content/*` import alias.
 - **React 19 strict lint rules**: No `Math.random()` in `useMemo` or during render. No `setState` in `useEffect`. No refs during render. Use deterministic alternatives or module-scope generation.
@@ -36,12 +36,21 @@ Currently on `main` branch.
 ```
 content/           — Content data (travel MDX, projects, resume, now)
 public/            — Static assets (images, models, fonts, favicon)
+  demo/{slug}/     — Per-demo assets (images, etc.)
+scripts/           — CLI scripts (new-demo.ts scaffold)
 src/app/           — Pages (Next.js App Router)
-src/components/    — React components by feature (three/, layout/, ui/, home/, travel/, about/, projects/, family-tree/)
-src/lib/           — Utilities (mdx.ts, supabase/)
-src/types/         — TypeScript types (family.ts)
+  admin/demos/     — Admin demo management pages
+  demo/{slug}/     — Per-client demo pages (each independently vibe-coded)
+src/components/    — React components by feature
+  client/          — Demo hosting: ClientDashboardStrip, RequestChangesModal
+  admin/ui/        — Admin UI primitives (Button, Modal, Table, etc.)
+src/lib/
+  demo/gate.ts     — gateDemo() server-only helper
+  auth/            — Permission helpers, audit logging
+  supabase/        — Client, server, middleware, admin factories
+src/types/         — TypeScript types (family.ts, admin.ts, client.ts)
 middleware.ts      — Next.js middleware (Supabase session refresh, route protection)
-supabase-schema.sql — Database schema (run in Supabase SQL editor)
+supabase-schema.sql — Database schema (run in Supabase SQL editor for fresh projects)
 ```
 
 ## Development Commands
@@ -83,10 +92,30 @@ supabase-schema.sql — Database schema (run in Supabase SQL editor)
 - **Service-role client**: `src/lib/supabase/admin.ts` — `createServiceRoleClient()` is server-only (`import 'server-only'`), per-request, throws `MissingServiceRoleKeyError` if env var missing. Used for `deleteUser`, `inviteUserByEmail`, `listUsers`.
 - **UI primitives**: `src/components/admin/ui/` — `Button`, `Input`, `Textarea`, `Select`, `Toggle`, `Table`, `Modal`, `ConfirmDialog`, `Badge`, `EmptyState`. Modals use fixed-position overlays (no portal). All admin/account pages use these — `/login` was intentionally left untouched in Phase 3 to avoid regressing working auth.
 
+## Phase 4 (Built): Client demo hosting
+
+- **Goal**: Host prospect demo sites at `/demo/{slug}` behind per-client auth, with a dashboard strip for Approve / Request Changes / Pay actions.
+- **Auth model**: A third system role `client` (all permissions false) is assigned to invited users by default. Clients can't access `/family-tree` (no `view_family_tree`) or `/admin`. Demo visibility is many-to-many via `client_access(client_id, user_id)`; admins bypass via `has_permission('manage_users')`.
+- **Demo gate**: `src/lib/demo/gate.ts:gateDemo(slug)` — server-only helper called from each demo's `layout.tsx`. Checks auth, `disabled`, `client_access` membership (or admin bypass), updates `last_seen_at` via the `touch_demo_last_seen` SECURITY DEFINER RPC. Returns `{ client, isAdmin }`.
+- **Dashboard strip**: `src/components/client/ClientDashboardStrip.tsx` — `sticky top-16` client component (sits below the fixed site nav). Shows business name, status badges, and action buttons (Approve, Request Changes, Pay). `RequestChangesModal.tsx` for the feedback form.
+- **Client actions**: `src/app/demo/actions.ts:recordClientAction(...)` — server action, inserts into `client_actions` table and logs to `audit_log`.
+- **Admin demos dashboard**: `/admin/demos` — list, create, archive, mark paid, set Stripe payment link, plus Manage Access modal for granting existing users access to a demo (no email; admin notifies via own channel). Server actions in `src/app/admin/demos/actions.ts`. "Demos" added to `AdminSidebar`.
+- **Invitation + signup flow**: `sendInvitation({ email, role?, client_slug? })` inserts an invitation row and best-effort calls `auth.admin.inviteUserByEmail` (Supabase's built-in email; rate-limited 3/hour on free tier). The admin always gets a copyable `/signup?email=...` URL to share manually if email isn't sent. Two signup paths converge on `/signup`:
+  - **Path B** (clicked Supabase email): `/auth/callback` (client page; handles both PKCE `?code=` and implicit `#access_token` flows) sets the session → `/signup` shows `CompleteAccountForm` → `completeAccount` server action sets password + display name.
+  - **Path C** (admin shared URL): `/signup?email=...` shows `SignupForm` with email locked → `selfSignup` calls `admin.createUser({ email_confirm: true })` for new users or `updateUserById` for half-formed Supabase rows; refuses to overwrite real, fully-set-up accounts. Client signs in immediately. No separate email-verification step.
+- **Triggers**: `handle_new_user` enforces invite-only gate + auto-confirm provisioning. `handle_user_confirmed` provisions on `email_confirmed_at` NULL→NOT NULL. Both call `_provision_invitee()` which loops every pending invitation for the email so a single signup binds access to multiple demos.
+- **Scaffold script**: `npm run new-demo -- --slug=acme --name="Acme Bakery"` creates `src/app/demo/{slug}/{layout.tsx, page.tsx, CLAUDE.md}` and `public/demo/{slug}/`. The per-demo `CLAUDE.md` is the source of truth for vibe-coding agents working in that folder (Claude Code auto-loads it) and documents the available theming options. Does NOT touch the DB — create the row via `/admin/demos` first.
+- **Middleware**: `/demo/:path*` added to the matcher and `protectedPaths`. Auth + disabled check apply as for all protected routes.
+- **Isolation rules**: Each demo lives entirely in `src/app/demo/{slug}/` + `public/demo/{slug}/`. May import `src/components/client/*` and `src/components/admin/ui/*`. Must NOT import from another demo or add to shared component folders for demo-specific needs.
+- **Graduation workflow (manual)**: Copy `src/app/demo/{slug}/` and `public/demo/{slug}/` to a new repo, strip the `gateDemo()` layout wrapper, create a new Vercel project, attach the custom domain, then `markPaid(id)`.
+- **New types**: `src/types/client.ts` — `Client`, `ClientAction`, `ClientAccess`. `Invitation` in `src/types/family.ts` gained `role_id` and `client_slug` fields.
+- **New DB tables**: `clients` (slug, business_name, status, payment_link_url, last_seen_at), `client_access` (client_id, user_id, granted_by, granted_at), `client_actions` (client_id, action, message). All have RLS enabled.
+
 ## TODOs
 
 - Add travel photos to `public/images/travel/{slug}/`
 - Personalize placeholder trip descriptions in MDX files
+- Add first client demo under `src/app/demo/{slug}/` when ready
 
 ## Common Pitfalls
 
@@ -100,3 +129,8 @@ supabase-schema.sql — Database schema (run in Supabase SQL editor)
 - Do NOT delete or rename system roles (`admin`, `family_member`) — guarded by trigger.
 - `profiles.role` text column NO LONGER exists. Use `profiles.role_id` joined to `roles`. The `getCurrentUserWithRole()` helper returns the joined shape.
 - After an admin changes user X's role, X's in-memory `role` context stays stale until they refresh. RLS reads from the DB so data access is correct, but UI affordances may lag for that session.
+- `src/lib/demo/gate.ts` has `import 'server-only'`. Never import `DemoGateResult` into client components — define the props inline.
+- Each demo's `layout.tsx` MUST include `export const dynamic = 'force-dynamic'` since it queries the DB on every request.
+- Demos MUST NOT import from each other — each folder is fully self-contained so it can be cleanly cut into a graduation repo.
+- Do NOT edit `src/app/globals.css` for a demo. Use Tailwind classes inline or a co-located `*.module.css`. (The shared `[data-theme="light"]` block in `globals.css` is the one exception — it's the site-level light palette that any demo can opt into; don't add demo-specific overrides there.)
+- Per-demo `src/app/demo/{slug}/CLAUDE.md` files are auto-generated by the scaffolder and are the canonical guardrails for vibe-coding agents working in that folder. When working inside a demo folder, follow the per-demo CLAUDE.md over this root file where they conflict.

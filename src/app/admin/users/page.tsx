@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
+import { createServiceRoleClient, MissingServiceRoleKeyError, listAllAuthUsers } from '@/lib/supabase/admin';
 import { requirePermission } from '@/lib/auth/permissions';
 import UsersTable from './UsersTable';
 import EmptyState from '@/components/admin/ui/EmptyState';
@@ -11,9 +11,9 @@ export const dynamic = 'force-dynamic';
 async function loadLastSignIns(): Promise<Map<string, string | null>> {
   try {
     const admin = createServiceRoleClient();
-    const { data } = await admin.auth.admin.listUsers({ perPage: 200 });
+    const users = await listAllAuthUsers(admin);
     const map = new Map<string, string | null>();
-    (data?.users ?? []).forEach((u) => map.set(u.id, u.last_sign_in_at ?? null));
+    users.forEach((u) => map.set(u.id, u.last_sign_in_at ?? null));
     return map;
   } catch (err) {
     if (err instanceof MissingServiceRoleKeyError) return new Map();

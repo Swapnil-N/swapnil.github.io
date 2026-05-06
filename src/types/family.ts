@@ -33,4 +33,6 @@ export interface Invitation {
   invited_by: string;
   status: 'pending' | 'accepted';
   created_at: string;
+  role_id: string | null;
+  client_slug: string | null;
 }

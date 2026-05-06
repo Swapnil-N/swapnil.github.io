@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
+import { createServiceRoleClient, MissingServiceRoleKeyError, listAllAuthUsers } from '@/lib/supabase/admin';
 import Badge from '@/components/admin/ui/Badge';
 import { Table, THead, TBody, TR, TH, TD } from '@/components/admin/ui/Table';
 import EmptyState from '@/components/admin/ui/EmptyState';
@@ -56,9 +56,8 @@ interface RecentlyActiveUser {
 async function loadRecentlyActive(): Promise<{ rows: RecentlyActiveUser[] | null; error: string | null }> {
   try {
     const admin = createServiceRoleClient();
-    const { data, error } = await admin.auth.admin.listUsers({ perPage: 100 });
-    if (error) return { rows: null, error: error.message };
-    const rows = (data?.users ?? [])
+    const users = await listAllAuthUsers(admin);
+    const rows = users
       .filter((u) => u.last_sign_in_at)
       .sort((a, b) => (b.last_sign_in_at ?? '').localeCompare(a.last_sign_in_at ?? ''))
       .slice(0, 10)

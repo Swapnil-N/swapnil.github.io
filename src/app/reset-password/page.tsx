@@ -11,9 +11,22 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-export default async function ResetPasswordPage() {
+interface PageProps {
+  searchParams: Promise<{ next?: string }>;
+}
+
+// Only allow same-origin paths to prevent open-redirect via the next= param.
+function safeNext(raw: string | undefined): string {
+  if (!raw) return '/family-tree';
+  return raw.startsWith('/') && !raw.startsWith('//') ? raw : '/family-tree';
+}
+
+export default async function ResetPasswordPage({ searchParams }: PageProps) {
   const auth = await getCurrentUserWithRole();
-  if (!auth) redirect('/login?redirect=/reset-password');
+  const params = await searchParams;
+  const next = safeNext(params.next);
+
+  if (!auth) redirect(`/login?redirect=/reset-password${params.next ? `?next=${encodeURIComponent(params.next)}` : ''}`);
 
   return (
     <PageTransition>
@@ -22,7 +35,7 @@ export default async function ResetPasswordPage() {
         <p className="text-muted mb-8">
           Enter a new password for {auth.user.email ?? 'your account'}.
         </p>
-        <ResetPasswordForm />
+        <ResetPasswordForm next={next} />
       </div>
     </PageTransition>
   );

@@ -25,9 +25,15 @@ export default function Nav() {
 
   const showAdmin = !!auth?.role && ADMIN_PERMISSIONS.some((p) => roleHasPermission(auth.role, p));
   const showFamilyTree = !!auth?.role && roleHasPermission(auth.role, 'view_family_tree');
-  const visibleLinks = showFamilyTree
-    ? [...links, { href: '/family-tree', label: 'Family Tree' }]
-    : links;
+  // Clients (non-admin, non-family-member roles) get a "My Demos" entry so
+  // they can find demos they have access to from anywhere on the site.
+  // Admins reach demos via /admin/demos; family members rarely have demos.
+  const showMyDemos = !!auth?.role && !showAdmin && !showFamilyTree;
+  const visibleLinks = [
+    ...links,
+    ...(showFamilyTree ? [{ href: '/family-tree', label: 'Family Tree' }] : []),
+    ...(showMyDemos ? [{ href: '/demos', label: 'My Demos' }] : []),
+  ];
 
   async function handleSignOut() {
     setSigningOut(true);

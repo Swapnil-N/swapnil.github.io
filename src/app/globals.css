@@ -16,6 +16,21 @@
   --color-on-primary: #ffffff;
 }
 
+/* Opt-in light theme for individual client demos. Wrap the demo's `{children}`
+   in `<div data-theme="light">` and Tailwind tokens (bg-surface, text-foreground,
+   text-muted, etc.) cascade to light values. Site default stays dark. */
+[data-theme="light"] {
+  --color-primary: #d63f44;
+  --color-secondary: #2424d6;
+  --color-accent: #c89200;
+  --color-surface: #ffffff;
+  --color-text: #0f0f19;
+  --color-muted: rgba(15, 15, 25, 0.6);
+  --color-border: rgba(15, 15, 25, 0.12);
+  --color-card: rgba(15, 15, 25, 0.04);
+  --color-on-primary: #ffffff;
+}
+
 @theme inline {
   --color-primary: var(--color-primary);
   --color-secondary: var(--color-secondary);

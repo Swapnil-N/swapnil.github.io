@@ -1,20 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
 import { requirePermission } from '@/lib/auth/permissions';
 import { logAudit } from '@/lib/auth/audit';
+import { siteOrigin } from '@/lib/site-origin';
 
 type Result = { ok: true } | { ok: false; error: string };
-
-async function siteOrigin(): Promise<string> {
-  const h = await headers();
-  const proto = h.get('x-forwarded-proto') ?? 'https';
-  const host = h.get('host') ?? '';
-  return `${proto}://${host}`;
-}
 
 export async function updateUserRole(userId: string, roleId: string): Promise<Result> {
   const { user } = await requirePermission('manage_users');
@@ -79,13 +72,38 @@ export async function deleteUser(userId: string): Promise<Result> {
   if (userId === user.id) {
     return { ok: false, error: 'You cannot delete your own account.' };
   }
+
+  // Capture email up front so we can clean up any matching invitation rows.
+  // (auth user deletion cascades to profile and client_access rows, but
+  // doesn't touch invitations since they reference by email.)
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('email')
+    .eq('id', userId)
+    .maybeSingle();
+
   try {
     const admin = createServiceRoleClient();
     const { error } = await admin.auth.admin.deleteUser(userId);
     if (error) return { ok: false, error: error.message };
-    await logAudit({ action: 'profile.deleted', targetType: 'profile', targetId: userId });
+
+    if (profile?.email) {
+      // Best-effort: remove invitations for this email so the same address
+      // can be re-invited cleanly. Don't fail the whole delete if this errors.
+      await supabase.from('invitations').delete().eq('email', profile.email);
+    }
+
+    await logAudit({
+      action: 'profile.deleted',
+      targetType: 'profile',
+      targetId: userId,
+      metadata: { email: profile?.email ?? null },
+    });
     revalidatePath('/admin/users');
     revalidatePath('/admin');
+    revalidatePath('/admin/invitations');
+    revalidatePath('/admin/demos');
     return { ok: true };
   } catch (err) {
     if (err instanceof MissingServiceRoleKeyError) {
