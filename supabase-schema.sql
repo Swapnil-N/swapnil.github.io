@@ -53,13 +53,38 @@ alter table public.profiles enable row level security;
 -- Invitations
 -- ============================================================================
 
+-- email is NOT unique here. Pending invites are de-duped via partial unique
+-- indexes further down (one pending family invite per email; one pending demo
+-- invite per (email, client_slug) pair). Accepted/historical rows can co-exist.
 create table if not exists public.invitations (
   id uuid primary key default gen_random_uuid(),
-  email text not null unique,
+  email text not null,
   invited_by uuid references public.profiles(id) not null,
   status text check (status in ('pending', 'accepted')) default 'pending',
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  -- Demo-hosting columns (added in Phase 4):
+  role_id uuid references public.roles(id),
+  client_slug text references public.clients(slug),
+  -- Token-based custom invitation flow (Phase 4 redesign):
+  accept_token text,
+  expires_at timestamptz
 );
+
+create unique index if not exists invitations_accept_token_unique
+  on public.invitations (accept_token)
+  where accept_token is not null;
+
+create unique index if not exists invitations_email_pending_family_unique
+  on public.invitations (email)
+  where status = 'pending' and client_slug is null;
+
+create unique index if not exists invitations_email_slug_pending_unique
+  on public.invitations (email, client_slug)
+  where status = 'pending' and client_slug is not null;
+
+create index if not exists invitations_client_slug_idx
+  on public.invitations (client_slug)
+  where client_slug is not null;
 
 alter table public.invitations enable row level security;
 
@@ -154,35 +179,17 @@ $$ language sql security definer stable set search_path = public, pg_catalog;
 -- Triggers
 -- ============================================================================
 
--- Auto-create profile on signup. Enforces invite-only access at the database
--- level: signups whose email isn't in the invitations table are rejected and
--- the auth.users insert rolls back with the rest of the transaction.
+-- Invite-only signup gate. Profile creation + access binding live in the
+-- /accept-invite server action (see Phase 4); the trigger is defence-in-depth.
 create or replace function public.handle_new_user() returns trigger as $$
-declare
-  default_role_id uuid;
-  has_invite boolean;
 begin
-  select exists (
-    select 1 from public.invitations where email = new.email
-  ) into has_invite;
-  if not has_invite then
+  if not exists (
+    select 1 from public.invitations
+     where email = new.email and status = 'pending'
+  ) then
     raise exception 'Signup is invite-only. Ask an admin to send you an invitation.'
       using errcode = 'P0001';
   end if;
-
-  select id into default_role_id from public.roles where name = 'family_member' limit 1;
-  if default_role_id is null then
-    raise exception 'family_member role missing — cannot create profile';
-  end if;
-
-  insert into public.profiles (id, email, display_name, role_id)
-  values (
-    new.id,
-    new.email,
-    new.raw_user_meta_data->>'display_name',
-    default_role_id
-  );
-  update public.invitations set status = 'accepted' where email = new.email;
   return new;
 end;
 $$ language plpgsql security definer set search_path = public, pg_catalog, auth;
@@ -342,7 +349,6 @@ create table if not exists public.clients (
   id uuid primary key default gen_random_uuid(),
   slug text unique not null,
   business_name text not null,
-  owner_user_id uuid references auth.users(id) on delete set null,
   status text not null default 'demo'
     check (status in ('demo', 'paid', 'archived')),
   payment_link_url text,
@@ -351,15 +357,15 @@ create table if not exists public.clients (
   last_seen_at timestamptz
 );
 
-create index if not exists clients_owner_user_id_idx on public.clients (owner_user_id);
-
 alter table public.clients enable row level security;
 
-create policy clients_select on public.clients for select
-  using (
-    owner_user_id = (select auth.uid())
-    or has_permission('manage_users')
-  );
+-- Visibility: admins see all, users see clients they have an access row for.
+create policy clients_select on public.clients for select using (
+  has_permission('manage_users') or exists (
+    select 1 from public.client_access ca
+     where ca.client_id = clients.id and ca.user_id = (select auth.uid())
+  )
+);
 create policy clients_insert on public.clients for insert
   with check (has_permission('manage_users'));
 create policy clients_update on public.clients for update
@@ -367,6 +373,30 @@ create policy clients_update on public.clients for update
   with check (has_permission('manage_users'));
 create policy clients_delete on public.clients for delete
   using (has_permission('manage_users'));
+
+-- ============================================================================
+-- Client access (many-to-many: which users can view which demos)
+-- ============================================================================
+-- Source of truth for demo visibility. Admins bypass via has_permission.
+
+create table if not exists public.client_access (
+  client_id uuid references public.clients(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  granted_by uuid references public.profiles(id) on delete set null,
+  granted_at timestamptz default now() not null,
+  primary key (client_id, user_id)
+);
+
+create index if not exists client_access_user_id_idx on public.client_access (user_id);
+
+alter table public.client_access enable row level security;
+
+create policy client_access_select on public.client_access for select using (
+  user_id = (select auth.uid()) or has_permission('manage_users')
+);
+create policy client_access_modify on public.client_access for all
+  using (has_permission('manage_users'))
+  with check (has_permission('manage_users'));
 
 -- ============================================================================
 -- Client actions (prospect interactions)
@@ -382,117 +412,28 @@ create table if not exists public.client_actions (
 );
 
 create index if not exists client_actions_client_id_idx on public.client_actions (client_id);
+create index if not exists client_actions_user_id_idx on public.client_actions (user_id);
 
 alter table public.client_actions enable row level security;
 
--- Owner can record their own actions; admins read all.
+-- Users with access can record their own actions; admins read all.
 create policy client_actions_insert on public.client_actions for insert
   with check (
     exists (
-      select 1 from public.clients c
-      where c.id = client_id and c.owner_user_id = (select auth.uid())
+      select 1 from public.client_access ca
+       where ca.client_id = client_actions.client_id
+         and ca.user_id = (select auth.uid())
     )
   );
 create policy client_actions_select on public.client_actions for select
   using (has_permission('manage_users'));
 
 -- ============================================================================
--- Extend invitations for client demo access
--- ============================================================================
-
--- role_id: if set, the new user is assigned this role instead of family_member.
--- client_slug: if set, the new user becomes owner of this client's demo.
-alter table public.invitations
-  add column if not exists role_id uuid references public.roles(id),
-  add column if not exists client_slug text references public.clients(slug);
-
--- Provisioning logic shared between handle_new_user (auto-confirm path) and
--- handle_user_confirmed (normal invite flow): creates the profile, binds
--- demo ownership, and marks the invitation accepted.
-create or replace function public._provision_invitee(p_user_id uuid, p_email text, p_display_name text)
-returns void
-language plpgsql
-security definer
-set search_path = public, pg_catalog
-as $$
-declare
-  inv         public.invitations%rowtype;
-  chosen_role uuid;
-begin
-  select * into inv from public.invitations
-   where email = p_email and status = 'pending' limit 1;
-  if inv.id is null then return; end if;
-
-  if inv.role_id is not null then
-    chosen_role := inv.role_id;
-  else
-    select id into chosen_role from public.roles where name = 'family_member' limit 1;
-  end if;
-  if chosen_role is null then
-    raise exception 'no role available for new user';
-  end if;
-
-  insert into public.profiles (id, email, display_name, role_id)
-  values (p_user_id, p_email, p_display_name, chosen_role)
-  on conflict (id) do nothing;
-
-  if inv.client_slug is not null then
-    update public.clients set owner_user_id = p_user_id where slug = inv.client_slug;
-  end if;
-
-  update public.invitations set status = 'accepted' where id = inv.id;
-end;
-$$;
-
-revoke execute on function public._provision_invitee(uuid, text, text) from anon, authenticated, public;
-
--- handle_new_user: enforce invite-only signup gate, plus provision immediately
--- if email_confirmed_at is already set (auto-confirm path). For the normal
--- invite-then-click flow, email_confirmed_at is NULL on insert so this just
--- gates and waits for handle_user_confirmed.
-create or replace function public.handle_new_user() returns trigger as $$
-begin
-  if not exists (
-    select 1 from public.invitations
-     where email = new.email and status = 'pending'
-  ) then
-    raise exception 'Signup is invite-only. Ask an admin to send you an invitation.'
-      using errcode = 'P0001';
-  end if;
-
-  if new.email_confirmed_at is not null then
-    perform public._provision_invitee(new.id, new.email, new.raw_user_meta_data->>'display_name');
-  end if;
-
-  return new;
-end;
-$$ language plpgsql security definer set search_path = public, pg_catalog, auth;
-
-revoke execute on function public.handle_new_user() from anon, authenticated, public;
-
--- handle_user_confirmed: provision when email_confirmed_at transitions from
--- NULL to NOT NULL (the user clicked the invite/confirmation link).
-create or replace function public.handle_user_confirmed() returns trigger as $$
-begin
-  if old.email_confirmed_at is null and new.email_confirmed_at is not null then
-    perform public._provision_invitee(new.id, new.email, new.raw_user_meta_data->>'display_name');
-  end if;
-  return new;
-end;
-$$ language plpgsql security definer set search_path = public, pg_catalog, auth;
-
-revoke execute on function public.handle_user_confirmed() from anon, authenticated, public;
-
-drop trigger if exists on_auth_user_email_confirmed on auth.users;
-create trigger on_auth_user_email_confirmed
-  after update of email_confirmed_at on auth.users
-  for each row execute function public.handle_user_confirmed();
-
--- ============================================================================
 -- touch_demo_last_seen — SECURITY DEFINER helper for last_seen_at tracking
 -- ============================================================================
--- Clients have no blanket UPDATE policy on `clients`, so we use a SECURITY
--- DEFINER function that restricts the update to the caller's own row.
+-- Updates last_seen_at only when the caller has a client_access row for the
+-- given slug. SECURITY DEFINER lets us avoid granting a blanket UPDATE policy
+-- to the client role.
 
 create or replace function public.touch_demo_last_seen(p_slug text)
 returns void
@@ -504,20 +445,12 @@ begin
   update public.clients
      set last_seen_at = now()
    where slug = p_slug
-     and owner_user_id = (select auth.uid());
+     and exists (
+       select 1 from public.client_access ca
+        where ca.client_id = clients.id and ca.user_id = auth.uid()
+     );
 end;
 $$;
 
 revoke execute on function public.touch_demo_last_seen(text) from public, anon;
 grant  execute on function public.touch_demo_last_seen(text) to authenticated;
-
--- ============================================================================
--- Performance indexes added post-review
--- ============================================================================
-
-create index if not exists client_actions_user_id_idx
-  on public.client_actions (user_id);
-
-create index if not exists invitations_client_slug_idx
-  on public.invitations (client_slug)
-  where client_slug is not null;

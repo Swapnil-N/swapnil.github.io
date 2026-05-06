@@ -12,15 +12,17 @@ import Alert from '@/components/admin/ui/Alert';
 import EmptyState from '@/components/admin/ui/EmptyState';
 import { formatTimestamp } from '@/lib/format-date';
 import { archiveDemo, markPaid, setPaymentLink } from './actions';
+import ManageAccessModal, { type AccessUser, type EligibleUser } from './ManageAccessModal';
 import type { Client } from '@/types/client';
 
 interface DemoRow extends Client {
-  owner_email: string | null;
-  pending_invitee_email: string | null;
+  access_users: AccessUser[];
+  pending_invitee_emails: string[];
 }
 
 interface Props {
   demos: DemoRow[];
+  eligibleUsers: EligibleUser[];
 }
 
 const STATUS_TONE = {
@@ -29,20 +31,17 @@ const STATUS_TONE = {
   archived: 'neutral',
 } as const satisfies Record<Client['status'], 'primary' | 'success' | 'neutral'>;
 
-export default function DemosTable({ demos }: Props) {
+export default function DemosTable({ demos, eligibleUsers }: Props) {
   const [, startTransition] = useTransition();
-  // Track which row's action is in-flight; null = idle
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // archive confirm
   const [archiving, setArchiving] = useState<string | null>(null);
-  // mark paid confirm
   const [payingId, setPayingId] = useState<string | null>(null);
-  // payment link modal
   const [payLinkId, setPayLinkId] = useState<string | null>(null);
   const [payLinkUrl, setPayLinkUrl] = useState('');
   const [payLinkError, setPayLinkError] = useState<string | null>(null);
+  const [accessId, setAccessId] = useState<string | null>(null);
 
   function run(id: string, fn: () => Promise<void>) {
     setError(null);
@@ -82,7 +81,7 @@ export default function DemosTable({ demos }: Props) {
       const res = await setPaymentLink(payLinkId, payLinkUrl);
       if (!res.ok) {
         setPayLinkError(res.error);
-        setPendingId(null); // clear so the modal stays open
+        setPendingId(null);
       } else {
         setPayLinkId(null);
       }
@@ -91,6 +90,20 @@ export default function DemosTable({ demos }: Props) {
 
   if (demos.length === 0) {
     return <EmptyState title="No demos yet" description='Create one with the "+ New demo" button above.' />;
+  }
+
+  const accessDemo = demos.find((d) => d.id === accessId) ?? null;
+
+  function renderAccessCell(demo: DemoRow) {
+    const count = demo.access_users.length;
+    const pending = demo.pending_invitee_emails.length;
+    if (count === 0 && pending === 0) {
+      return <span className="italic">Unclaimed</span>;
+    }
+    const parts: string[] = [];
+    if (count > 0) parts.push(`${count} user${count === 1 ? '' : 's'}`);
+    if (pending > 0) parts.push(`${pending} pending`);
+    return <span className="text-foreground">{parts.join(' · ')}</span>;
   }
 
   return (
@@ -103,7 +116,7 @@ export default function DemosTable({ demos }: Props) {
             <TH>Business</TH>
             <TH>Slug</TH>
             <TH>Status</TH>
-            <TH>Owner</TH>
+            <TH>Access</TH>
             <TH>Last active</TH>
             <TH className="text-right">Actions</TH>
           </TR>
@@ -127,18 +140,20 @@ export default function DemosTable({ demos }: Props) {
                 <TD>
                   <Badge tone={STATUS_TONE[demo.status]}>{demo.status}</Badge>
                 </TD>
-                <TD className="text-muted text-sm">
-                  {demo.owner_email
-                    ? demo.owner_email
-                    : demo.pending_invitee_email
-                      ? <span className="italic">Pending: {demo.pending_invitee_email}</span>
-                      : <span className="italic">Unclaimed</span>}
-                </TD>
+                <TD className="text-muted text-sm">{renderAccessCell(demo)}</TD>
                 <TD className="text-muted whitespace-nowrap text-sm">
                   {demo.last_seen_at ? formatTimestamp(demo.last_seen_at) : '—'}
                 </TD>
                 <TD>
                   <div className="flex items-center justify-end gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setAccessId(demo.id)}
+                      disabled={rowPending}
+                    >
+                      Access
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -224,6 +239,15 @@ export default function DemosTable({ demos }: Props) {
           />
         </div>
       </Modal>
+
+      <ManageAccessModal
+        open={!!accessId}
+        onClose={() => setAccessId(null)}
+        client={accessDemo ? { id: accessDemo.id, business_name: accessDemo.business_name, slug: accessDemo.slug } : null}
+        accessUsers={accessDemo?.access_users ?? []}
+        pendingInviteeEmails={accessDemo?.pending_invitee_emails ?? []}
+        eligibleUsers={eligibleUsers}
+      />
     </>
   );
 }

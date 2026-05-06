@@ -1,16 +1,19 @@
 'use server';
 
+import { randomBytes } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
 import { requirePermission } from '@/lib/auth/permissions';
 import { logAudit } from '@/lib/auth/audit';
+import { sendEmail } from '@/lib/email/send';
+import { invitationEmail } from '@/lib/email/templates';
 
-type Result = { ok: true } | { ok: false; error: string };
+type Result = { ok: true; loggedOnly?: boolean } | { ok: false; error: string };
 
-// Pragmatic check; full RFC validation belongs to the email provider.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TOKEN_TTL_DAYS = 7;
 
 async function siteOrigin(): Promise<string> {
   const h = await headers();
@@ -19,12 +22,9 @@ async function siteOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
-// After Supabase verifies the invite token, the user has a session but no
-// password. Route them through /reset-password to set one, then on to their
-// landing page (demo for clients, family tree for family members).
-function buildInviteRedirectTo(origin: string, target: string): string {
-  const inner = `/reset-password?next=${encodeURIComponent(target)}`;
-  return `${origin}/auth/callback?next=${encodeURIComponent(inner)}`;
+function generateToken(): string {
+  // 32 bytes → 43 chars base64url. Plenty of entropy; URL-safe.
+  return randomBytes(32).toString('base64url');
 }
 
 interface InviteParams {
@@ -33,7 +33,9 @@ interface InviteParams {
   client_slug?: string;
 }
 
-export async function sendInvitation({ email, role = 'family_member', client_slug }: InviteParams): Promise<Result> {
+export async function sendInvitation(
+  { email, role = 'family_member', client_slug }: InviteParams,
+): Promise<Result> {
   const { user } = await requirePermission('invite');
   const trimmed = email.trim().toLowerCase();
   if (!trimmed) return { ok: false, error: 'Email is required' };
@@ -41,6 +43,26 @@ export async function sendInvitation({ email, role = 'family_member', client_slu
   if (role === 'client' && !client_slug) return { ok: false, error: 'Select a demo for client invitations' };
 
   const supabase = await createClient();
+
+  // Refuse if a user with this email already exists. They should be granted
+  // access via the Manage Access UI on /admin/demos, not invited as a new user.
+  try {
+    const admin = createServiceRoleClient();
+    const { data: list } = await admin.auth.admin.listUsers({ perPage: 200 });
+    const existing = list?.users.find((u) => u.email?.toLowerCase() === trimmed);
+    if (existing) {
+      return {
+        ok: false,
+        error: role === 'client'
+          ? 'A user with this email already exists. Use Manage Access on /admin/demos to grant them access to a demo.'
+          : 'A user with this email already exists.',
+      };
+    }
+  } catch (err) {
+    if (!(err instanceof MissingServiceRoleKeyError)) throw err;
+    // Without the service-role we can't enumerate auth.users; fall through and
+    // rely on the unique-on-email check inside admin.createUser later.
+  }
 
   // Resolve role_id
   const { data: roleRow, error: roleErr } = await supabase
@@ -50,76 +72,81 @@ export async function sendInvitation({ email, role = 'family_member', client_slu
     .maybeSingle();
   if (roleErr || !roleRow) return { ok: false, error: `Role '${role}' not found` };
 
-  // Verify client_slug exists (friendlier than a FK violation)
+  // Verify the demo exists if it's a client invite
+  let businessName: string | undefined;
   if (role === 'client' && client_slug) {
     const { data: clientRow } = await supabase
       .from('clients')
-      .select('slug')
+      .select('slug, business_name')
       .eq('slug', client_slug)
       .maybeSingle();
     if (!clientRow) return { ok: false, error: `Demo '${client_slug}' not found` };
+    businessName = clientRow.business_name;
   }
 
-  const { error: insertError } = await supabase
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: inserted, error: insertError } = await supabase
     .from('invitations')
     .insert({
       email: trimmed,
       invited_by: user.id,
       role_id: roleRow.id,
       client_slug: client_slug ?? null,
-    });
+      accept_token: token,
+      expires_at: expiresAt,
+    })
+    .select('id')
+    .single();
 
   if (insertError) {
-    // Unique constraint on invitations.email — the address already has a pending
-    // or accepted invitation.
     if (insertError.code === '23505') {
       return {
         ok: false,
-        error: 'An invitation already exists for this email. If they have already signed up, manage their access from Users. If the invite was not accepted, revoke it first then re-invite.',
+        error: 'A pending invitation already exists for this email + demo combination. Revoke it first to re-send.',
       };
     }
     return { ok: false, error: insertError.message };
   }
 
-  let emailDelivered = true;
-  let emailError: string | null = null;
-  try {
-    const admin = createServiceRoleClient();
-    const origin = await siteOrigin();
-    const target = role === 'client' && client_slug ? `/demo/${client_slug}` : '/family-tree';
-    const redirectTo = buildInviteRedirectTo(origin, target);
-    const { error } = await admin.auth.admin.inviteUserByEmail(trimmed, { redirectTo });
-    if (error) {
-      emailDelivered = false;
-      emailError = error.message;
-    }
-  } catch (err) {
-    if (err instanceof MissingServiceRoleKeyError) {
-      emailDelivered = false;
-      emailError = 'Service role key not configured — invitation recorded but email not sent.';
-    } else {
-      throw err;
-    }
+  const origin = await siteOrigin();
+  const acceptUrl = `${origin}/accept-invite?token=${token}`;
+  const { subject, html, text } = invitationEmail({
+    acceptUrl,
+    businessName,
+    isClient: role === 'client',
+  });
+  const sendResult = await sendEmail({ to: trimmed, subject, html, text });
+
+  if (!sendResult.ok) {
+    // Rollback the invitation row so the admin can retry without a "duplicate"
+    // error (and so we don't have an orphan token sitting in the table).
+    await supabase.from('invitations').delete().eq('id', inserted.id);
+    return { ok: false, error: `Email failed: ${sendResult.error ?? 'unknown'}` };
   }
 
   await logAudit({
     action: 'invitation.sent',
     targetType: 'invitation',
-    metadata: { email: trimmed, role, client_slug: client_slug ?? null, email_delivered: emailDelivered },
+    targetId: inserted.id,
+    metadata: {
+      email: trimmed,
+      role,
+      client_slug: client_slug ?? null,
+      email_logged_only: sendResult.loggedOnly ?? false,
+    },
   });
   revalidatePath('/admin/invitations');
   revalidatePath('/admin');
-  if (!emailDelivered) {
-    return { ok: false, error: emailError ?? 'Email not delivered' };
-  }
-  return { ok: true };
+  revalidatePath('/admin/demos');
+  return { ok: true, loggedOnly: sendResult.loggedOnly };
 }
 
 export async function revokeInvitation(id: string): Promise<Result> {
   await requirePermission('invite');
   const supabase = await createClient();
 
-  // Look up the invitation first so we know which email + status we're revoking.
   const { data: inv, error: lookupError } = await supabase
     .from('invitations')
     .select('id, email, status')
@@ -128,27 +155,8 @@ export async function revokeInvitation(id: string): Promise<Result> {
   if (lookupError) return { ok: false, error: lookupError.message };
   if (!inv) return { ok: false, error: 'Invitation not found.' };
 
-  // For pending invitations (user hasn't confirmed yet), also delete the
-  // half-formed auth.users row created by inviteUserByEmail. Cascading FKs
-  // unbind clients.owner_user_id and (if any) delete the profile. For
-  // accepted invitations, leave the user alone — admin should use
-  // /admin/users to remove a confirmed user.
-  if (inv.status === 'pending') {
-    try {
-      const admin = createServiceRoleClient();
-      const { data: list } = await admin.auth.admin.listUsers({ perPage: 200 });
-      const target = list?.users.find((u) => u.email?.toLowerCase() === inv.email.toLowerCase());
-      if (target) {
-        const { error: deleteErr } = await admin.auth.admin.deleteUser(target.id);
-        if (deleteErr) return { ok: false, error: `Could not delete pending user: ${deleteErr.message}` };
-      }
-    } catch (err) {
-      if (!(err instanceof MissingServiceRoleKeyError)) throw err;
-      // Without service-role we can't delete the auth user; carry on with
-      // invitation deletion so the row at least disappears from the UI.
-    }
-  }
-
+  // Token-based invites don't pre-create auth users, so revoke is just a
+  // delete of the invitation row. (For accepted invites the row is historical.)
   const { error: deleteError } = await supabase.from('invitations').delete().eq('id', id);
   if (deleteError) return { ok: false, error: deleteError.message };
 

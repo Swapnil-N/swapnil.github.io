@@ -22,17 +22,17 @@ export async function recordClientAction({
 
   const supabase = await createClient();
 
-  // Verify the caller actually owns this client row before inserting.
-  // The RLS policy also blocks unauthorized inserts at the DB level, but an
-  // explicit check here gives a clear error and prevents logAudit from being
-  // called spuriously on failed attempts.
-  const { data: owned } = await supabase
-    .from('clients')
-    .select('id')
-    .eq('id', client_id)
-    .eq('owner_user_id', auth.user.id)
+  // Verify the caller has access to this demo via client_access. The RLS
+  // policy on client_actions also blocks unauthorized inserts at the DB level,
+  // but an explicit check gives a clear error and prevents logAudit from
+  // being called spuriously on failed attempts.
+  const { data: access } = await supabase
+    .from('client_access')
+    .select('client_id')
+    .eq('client_id', client_id)
+    .eq('user_id', auth.user.id)
     .maybeSingle();
-  if (!owned) return { ok: false, error: 'Not your demo' };
+  if (!access) return { ok: false, error: 'You do not have access to this demo' };
 
   const { error } = await supabase.from('client_actions').insert({
     client_id,

@@ -1,11 +1,21 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requirePermission } from '@/lib/auth/permissions';
 import { logAudit } from '@/lib/auth/audit';
+import { sendEmail } from '@/lib/email/send';
+import { accessGrantedEmail } from '@/lib/email/templates';
 
-type Result = { ok: true } | { ok: false; error: string };
+type Result = { ok: true; loggedOnly?: boolean } | { ok: false; error: string };
+
+async function siteOrigin(): Promise<string> {
+  const h = await headers();
+  const proto = h.get('x-forwarded-proto') ?? 'https';
+  const host = h.get('host') ?? '';
+  return `${proto}://${host}`;
+}
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,}[a-z0-9]$/;
 
@@ -82,6 +92,93 @@ export async function setPaymentLink(id: string, url: string): Promise<Result> {
     .eq('id', id);
   if (error) return { ok: false, error: error.message };
   await logAudit({ action: 'demo.payment_link_set', targetType: 'client', targetId: id });
+  revalidatePath('/admin/demos');
+  return { ok: true };
+}
+
+// Grant an existing user access to a demo. Sends an "access granted" email.
+// For NEW users (no account yet), use /admin/invitations instead.
+export async function grantAccess({
+  client_id,
+  user_id,
+}: {
+  client_id: string;
+  user_id: string;
+}): Promise<Result> {
+  const { user: actor } = await requirePermission('manage_users');
+  const supabase = await createClient();
+
+  const { data: client } = await supabase
+    .from('clients')
+    .select('slug, business_name')
+    .eq('id', client_id)
+    .maybeSingle();
+  if (!client) return { ok: false, error: 'Demo not found' };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('email, role_id')
+    .eq('id', user_id)
+    .maybeSingle();
+  if (!profile) return { ok: false, error: 'User not found' };
+
+  const { error: insertError } = await supabase
+    .from('client_access')
+    .insert({ client_id, user_id, granted_by: actor.id });
+  if (insertError) {
+    if (insertError.code === '23505') {
+      return { ok: false, error: 'This user already has access to this demo.' };
+    }
+    return { ok: false, error: insertError.message };
+  }
+
+  const origin = await siteOrigin();
+  const demoUrl = `${origin}/demo/${client.slug}`;
+  const { subject, html, text } = accessGrantedEmail({
+    demoUrl,
+    businessName: client.business_name,
+  });
+  const sendResult = await sendEmail({ to: profile.email, subject, html, text });
+  // Don't roll back on email failure — access has been granted; admin can
+  // notify manually if the email failed.
+
+  await logAudit({
+    action: 'demo.access_granted',
+    targetType: 'client',
+    targetId: client_id,
+    metadata: {
+      user_id,
+      email: profile.email,
+      email_logged_only: sendResult.loggedOnly ?? false,
+      email_error: sendResult.ok ? null : sendResult.error ?? null,
+    },
+  });
+  revalidatePath('/admin/demos');
+  return { ok: true, loggedOnly: sendResult.loggedOnly };
+}
+
+export async function revokeAccess({
+  client_id,
+  user_id,
+}: {
+  client_id: string;
+  user_id: string;
+}): Promise<Result> {
+  await requirePermission('manage_users');
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('client_access')
+    .delete()
+    .eq('client_id', client_id)
+    .eq('user_id', user_id);
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit({
+    action: 'demo.access_revoked',
+    targetType: 'client',
+    targetId: client_id,
+    metadata: { user_id },
+  });
   revalidatePath('/admin/demos');
   return { ok: true };
 }

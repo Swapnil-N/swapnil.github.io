@@ -27,7 +27,7 @@ export async function gateDemo(slug: string): Promise<DemoGateResult> {
   const supabase = await createClient();
   const { data: client } = await supabase
     .from('clients')
-    .select('id, slug, business_name, payment_link_url, status, owner_user_id')
+    .select('id, slug, business_name, payment_link_url, status')
     .eq('slug', slug)
     .maybeSingle();
 
@@ -39,15 +39,25 @@ export async function gateDemo(slug: string): Promise<DemoGateResult> {
   }
 
   const isAdmin = auth.role.can_manage_users;
-  const isOwner = client.owner_user_id === auth.user.id;
-  if (!isAdmin && !isOwner) redirect('/');
+
+  let hasAccess = isAdmin;
+  if (!hasAccess) {
+    const { data: access } = await supabase
+      .from('client_access')
+      .select('client_id')
+      .eq('client_id', client.id)
+      .eq('user_id', auth.user.id)
+      .maybeSingle();
+    hasAccess = !!access;
+  }
+  if (!hasAccess) redirect('/');
 
   // Archived demos are hidden from clients (admins can still preview).
   if ((rawStatus as Client['status']) === 'archived' && !isAdmin) redirect('/');
 
-  if (isOwner) {
-    // SECURITY DEFINER RPC — only updates last_seen_at for the caller's own row.
-    // Avoids granting a blanket UPDATE policy to the client role.
+  if (!isAdmin) {
+    // SECURITY DEFINER RPC — only updates last_seen_at for the caller if
+    // they have a row in client_access for this slug.
     await supabase.rpc('touch_demo_last_seen', { p_slug: slug });
   }
 
