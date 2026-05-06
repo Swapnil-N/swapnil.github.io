@@ -16,7 +16,7 @@ import type { Client } from '@/types/client';
 
 interface DemoRow extends Client {
   owner_email: string | null;
-  owner_confirmed: boolean;
+  pending_invitee_email: string | null;
 }
 
 interface Props {
@@ -129,10 +129,10 @@ export default function DemosTable({ demos }: Props) {
                 </TD>
                 <TD className="text-muted text-sm">
                   {demo.owner_email
-                    ? demo.owner_confirmed
-                      ? demo.owner_email
-                      : <span className="italic">Pending: {demo.owner_email}</span>
-                    : <span className="italic">Unclaimed</span>}
+                    ? demo.owner_email
+                    : demo.pending_invitee_email
+                      ? <span className="italic">Pending: {demo.pending_invitee_email}</span>
+                      : <span className="italic">Unclaimed</span>}
                 </TD>
                 <TD className="text-muted whitespace-nowrap text-sm">
                   {demo.last_seen_at ? formatTimestamp(demo.last_seen_at) : '—'}

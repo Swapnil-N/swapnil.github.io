@@ -79,13 +79,38 @@ export async function deleteUser(userId: string): Promise<Result> {
   if (userId === user.id) {
     return { ok: false, error: 'You cannot delete your own account.' };
   }
+
+  // Capture email up front so we can clean up any matching invitation rows.
+  // (auth user deletion cascades to profile and clients.owner_user_id, but
+  // doesn't touch invitations since they reference by email.)
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('email')
+    .eq('id', userId)
+    .maybeSingle();
+
   try {
     const admin = createServiceRoleClient();
     const { error } = await admin.auth.admin.deleteUser(userId);
     if (error) return { ok: false, error: error.message };
-    await logAudit({ action: 'profile.deleted', targetType: 'profile', targetId: userId });
+
+    if (profile?.email) {
+      // Best-effort: remove invitations for this email so the same address
+      // can be re-invited cleanly. Don't fail the whole delete if this errors.
+      await supabase.from('invitations').delete().eq('email', profile.email);
+    }
+
+    await logAudit({
+      action: 'profile.deleted',
+      targetType: 'profile',
+      targetId: userId,
+      metadata: { email: profile?.email ?? null },
+    });
     revalidatePath('/admin/users');
     revalidatePath('/admin');
+    revalidatePath('/admin/invitations');
+    revalidatePath('/admin/demos');
     return { ok: true };
   } catch (err) {
     if (err instanceof MissingServiceRoleKeyError) {

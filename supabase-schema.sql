@@ -406,19 +406,22 @@ alter table public.invitations
   add column if not exists role_id uuid references public.roles(id),
   add column if not exists client_slug text references public.clients(slug);
 
--- Updated trigger honors invitation role and binds client ownership.
-create or replace function public.handle_new_user() returns trigger as $$
+-- Provisioning logic shared between handle_new_user (auto-confirm path) and
+-- handle_user_confirmed (normal invite flow): creates the profile, binds
+-- demo ownership, and marks the invitation accepted.
+create or replace function public._provision_invitee(p_user_id uuid, p_email text, p_display_name text)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
 declare
   inv         public.invitations%rowtype;
   chosen_role uuid;
 begin
   select * into inv from public.invitations
-   where email = new.email and status = 'pending' limit 1;
-
-  if inv.id is null then
-    raise exception 'Signup is invite-only. Ask an admin to send you an invitation.'
-      using errcode = 'P0001';
-  end if;
+   where email = p_email and status = 'pending' limit 1;
+  if inv.id is null then return; end if;
 
   if inv.role_id is not null then
     chosen_role := inv.role_id;
@@ -430,18 +433,60 @@ begin
   end if;
 
   insert into public.profiles (id, email, display_name, role_id)
-  values (new.id, new.email, new.raw_user_meta_data->>'display_name', chosen_role);
+  values (p_user_id, p_email, p_display_name, chosen_role)
+  on conflict (id) do nothing;
 
   if inv.client_slug is not null then
-    update public.clients set owner_user_id = new.id where slug = inv.client_slug;
+    update public.clients set owner_user_id = p_user_id where slug = inv.client_slug;
   end if;
 
   update public.invitations set status = 'accepted' where id = inv.id;
+end;
+$$;
+
+revoke execute on function public._provision_invitee(uuid, text, text) from anon, authenticated, public;
+
+-- handle_new_user: enforce invite-only signup gate, plus provision immediately
+-- if email_confirmed_at is already set (auto-confirm path). For the normal
+-- invite-then-click flow, email_confirmed_at is NULL on insert so this just
+-- gates and waits for handle_user_confirmed.
+create or replace function public.handle_new_user() returns trigger as $$
+begin
+  if not exists (
+    select 1 from public.invitations
+     where email = new.email and status = 'pending'
+  ) then
+    raise exception 'Signup is invite-only. Ask an admin to send you an invitation.'
+      using errcode = 'P0001';
+  end if;
+
+  if new.email_confirmed_at is not null then
+    perform public._provision_invitee(new.id, new.email, new.raw_user_meta_data->>'display_name');
+  end if;
+
   return new;
 end;
 $$ language plpgsql security definer set search_path = public, pg_catalog, auth;
 
 revoke execute on function public.handle_new_user() from anon, authenticated, public;
+
+-- handle_user_confirmed: provision when email_confirmed_at transitions from
+-- NULL to NOT NULL (the user clicked the invite/confirmation link).
+create or replace function public.handle_user_confirmed() returns trigger as $$
+begin
+  if old.email_confirmed_at is null and new.email_confirmed_at is not null then
+    perform public._provision_invitee(new.id, new.email, new.raw_user_meta_data->>'display_name');
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public, pg_catalog, auth;
+
+revoke execute on function public.handle_user_confirmed() from anon, authenticated, public;
+
+drop trigger if exists on_auth_user_email_confirmed on auth.users;
+create trigger on_auth_user_email_confirmed
+  after update of email_confirmed_at on auth.users
+  for each row execute function public.handle_user_confirmed();
 
 -- ============================================================================
 -- touch_demo_last_seen — SECURITY DEFINER helper for last_seen_at tracking

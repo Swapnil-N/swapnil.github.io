@@ -118,11 +118,48 @@ export async function sendInvitation({ email, role = 'family_member', client_slu
 export async function revokeInvitation(id: string): Promise<Result> {
   await requirePermission('invite');
   const supabase = await createClient();
-  const { data, error } = await supabase.from('invitations').delete().eq('id', id).select('id');
-  if (error) return { ok: false, error: error.message };
-  if (!data || data.length === 0) return { ok: false, error: 'Invitation not found.' };
-  await logAudit({ action: 'invitation.revoked', targetType: 'invitation', targetId: id });
+
+  // Look up the invitation first so we know which email + status we're revoking.
+  const { data: inv, error: lookupError } = await supabase
+    .from('invitations')
+    .select('id, email, status')
+    .eq('id', id)
+    .maybeSingle();
+  if (lookupError) return { ok: false, error: lookupError.message };
+  if (!inv) return { ok: false, error: 'Invitation not found.' };
+
+  // For pending invitations (user hasn't confirmed yet), also delete the
+  // half-formed auth.users row created by inviteUserByEmail. Cascading FKs
+  // unbind clients.owner_user_id and (if any) delete the profile. For
+  // accepted invitations, leave the user alone — admin should use
+  // /admin/users to remove a confirmed user.
+  if (inv.status === 'pending') {
+    try {
+      const admin = createServiceRoleClient();
+      const { data: list } = await admin.auth.admin.listUsers({ perPage: 200 });
+      const target = list?.users.find((u) => u.email?.toLowerCase() === inv.email.toLowerCase());
+      if (target) {
+        const { error: deleteErr } = await admin.auth.admin.deleteUser(target.id);
+        if (deleteErr) return { ok: false, error: `Could not delete pending user: ${deleteErr.message}` };
+      }
+    } catch (err) {
+      if (!(err instanceof MissingServiceRoleKeyError)) throw err;
+      // Without service-role we can't delete the auth user; carry on with
+      // invitation deletion so the row at least disappears from the UI.
+    }
+  }
+
+  const { error: deleteError } = await supabase.from('invitations').delete().eq('id', id);
+  if (deleteError) return { ok: false, error: deleteError.message };
+
+  await logAudit({
+    action: 'invitation.revoked',
+    targetType: 'invitation',
+    targetId: id,
+    metadata: { email: inv.email, status_at_revoke: inv.status },
+  });
   revalidatePath('/admin/invitations');
   revalidatePath('/admin');
+  revalidatePath('/admin/demos');
   return { ok: true };
 }
