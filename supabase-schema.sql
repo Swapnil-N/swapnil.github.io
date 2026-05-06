@@ -173,10 +173,12 @@ $$ language sql security definer stable set search_path = public, pg_catalog;
 -- ============================================================================
 
 -- _provision_invitee: shared helper called by handle_new_user (auto-confirm
--- path) and handle_user_confirmed (normal invite-then-click flow). Creates
--- the profile, binds client_access for demo invites, marks the invitation
--- accepted. NOTE: depends on tables (clients, client_access) defined later
--- in this file — the function body is parsed lazily so order is OK.
+-- path) and handle_user_confirmed (normal invite-then-click flow). Iterates
+-- every pending invitation for the email so a single signup binds access to
+-- every demo the user was invited to. Creates the profile once, marks all
+-- matching invitations accepted. NOTE: depends on tables (clients,
+-- client_access) defined later in this file — the function body is parsed
+-- lazily so order is OK.
 create or replace function public._provision_invitee(p_user_id uuid, p_email text, p_display_name text)
 returns void
 language plpgsql
@@ -187,16 +189,37 @@ declare
   inv         public.invitations%rowtype;
   chosen_role uuid;
   client_uuid uuid;
+  has_invite  boolean := false;
 begin
-  select * into inv from public.invitations
-   where email = p_email and status = 'pending' limit 1;
-  if inv.id is null then return; end if;
+  for inv in
+    select * from public.invitations
+     where email = p_email and status = 'pending'
+     order by created_at
+  loop
+    has_invite := true;
 
-  if inv.role_id is not null then
-    chosen_role := inv.role_id;
-  else
-    select id into chosen_role from public.roles where name = 'family_member' limit 1;
-  end if;
+    -- First invitation's role wins (or family_member by default).
+    if chosen_role is null then
+      if inv.role_id is not null then
+        chosen_role := inv.role_id;
+      else
+        select id into chosen_role from public.roles where name = 'family_member' limit 1;
+      end if;
+    end if;
+
+    if inv.client_slug is not null then
+      select id into client_uuid from public.clients where slug = inv.client_slug limit 1;
+      if client_uuid is not null then
+        insert into public.client_access (client_id, user_id)
+        values (client_uuid, p_user_id)
+        on conflict (client_id, user_id) do nothing;
+      end if;
+    end if;
+
+    update public.invitations set status = 'accepted' where id = inv.id;
+  end loop;
+
+  if not has_invite then return; end if;
   if chosen_role is null then
     raise exception 'no role available for new user';
   end if;
@@ -204,17 +227,6 @@ begin
   insert into public.profiles (id, email, display_name, role_id)
   values (p_user_id, p_email, p_display_name, chosen_role)
   on conflict (id) do nothing;
-
-  if inv.client_slug is not null then
-    select id into client_uuid from public.clients where slug = inv.client_slug limit 1;
-    if client_uuid is not null then
-      insert into public.client_access (client_id, user_id)
-      values (client_uuid, p_user_id)
-      on conflict (client_id, user_id) do nothing;
-    end if;
-  end if;
-
-  update public.invitations set status = 'accepted' where id = inv.id;
 end;
 $$;
 

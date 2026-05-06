@@ -1,21 +1,10 @@
 'use server';
 
-import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/auth/audit';
 
-type Result<E = void> = E extends void
-  ? { ok: true } | { ok: false; error: string }
-  : { ok: true } & E | { ok: false; error: string };
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-async function siteOrigin(): Promise<string> {
-  const h = await headers();
-  const proto = h.get('x-forwarded-proto') ?? 'https';
-  const host = h.get('host') ?? '';
-  return `${proto}://${host}`;
-}
 
 interface SelfSignupParams {
   email: string;
@@ -23,11 +12,20 @@ interface SelfSignupParams {
   display_name: string;
 }
 
-// Design C: user opened the /signup URL the admin shared. Validate against
-// the invitations allowlist, then call supabase.auth.signUp. Supabase sends
-// a confirmation email; clicking it lands them on /auth/callback → exchange
-// → handle_user_confirmed → /demo or /family-tree.
-export async function selfSignup({ email, password, display_name }: SelfSignupParams): Promise<Result> {
+// Path C: user opened the /signup URL the admin shared (or the link in
+// the Supabase invite email but didn't click "set up account" yet — we
+// detect either case below). Validates the allowlist, then either creates
+// the auth.users row (admin.createUser) OR promotes a pre-created row
+// (updateUserById, when Supabase's inviteUserByEmail had already inserted
+// it without a password). Either way we set email_confirm: true so no
+// separate confirmation step is required — the admin's allowlist is the
+// trust statement.
+export async function selfSignup(
+  { email, password, display_name }: SelfSignupParams,
+): Promise<
+  | { ok: true; redirect: string; email: string }
+  | { ok: false; error: string }
+> {
   const trimmed = email.trim().toLowerCase();
   if (!trimmed || !EMAIL_RE.test(trimmed)) return { ok: false, error: 'Enter a valid email address.' };
   if (password.length < 8) return { ok: false, error: 'Password must be at least 8 characters.' };
@@ -35,35 +33,64 @@ export async function selfSignup({ email, password, display_name }: SelfSignupPa
 
   const supabase = await createClient();
 
-  // Belt-and-braces allowlist check (handle_new_user trigger also enforces).
-  const { data: inv } = await supabase
+  // Allowlist check (handle_new_user trigger also enforces; this gives a
+  // friendlier error than the raw SQL exception).
+  const { data: anyInv } = await supabase
     .from('invitations')
     .select('client_slug')
     .eq('email', trimmed)
     .eq('status', 'pending')
+    .limit(1)
     .maybeSingle();
-  if (!inv) {
+  if (!anyInv) {
     return {
       ok: false,
       error: 'This email is not on the invitation list. Ask an admin to invite you.',
     };
   }
 
-  const origin = await siteOrigin();
-  const target = inv.client_slug ? `/demo/${inv.client_slug}` : '/family-tree';
-  const emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent(target)}`;
+  let admin;
+  try {
+    admin = createServiceRoleClient();
+  } catch (err) {
+    if (err instanceof MissingServiceRoleKeyError) {
+      return { ok: false, error: 'Service role key not configured — cannot create the account.' };
+    }
+    throw err;
+  }
 
-  const { error } = await supabase.auth.signUp({
-    email: trimmed,
-    password,
-    options: {
-      emailRedirectTo,
-      data: { display_name: display_name.trim() },
-    },
-  });
-  if (error) return { ok: false, error: error.message };
+  // Look up any pre-existing auth row for this email. inviteUserByEmail
+  // creates one with no password and email_confirmed_at=NULL.
+  const { data: list } = await admin.auth.admin.listUsers({ perPage: 200 });
+  const existing = list?.users.find((u) => u.email?.toLowerCase() === trimmed);
 
-  return { ok: true };
+  if (existing) {
+    // Promote the half-formed account: set the password and confirm the
+    // email. updating email_confirmed_at to a non-NULL value fires
+    // handle_user_confirmed → _provision_invitee (idempotent).
+    const { error: updateErr } = await admin.auth.admin.updateUserById(existing.id, {
+      password,
+      email_confirm: true,
+      user_metadata: { display_name: display_name.trim() },
+    });
+    if (updateErr) return { ok: false, error: updateErr.message };
+  } else {
+    // Fresh signup. createUser with email_confirm: true sets email_confirmed_at
+    // immediately, so handle_new_user provisions on the same insert.
+    const { error: createErr } = await admin.auth.admin.createUser({
+      email: trimmed,
+      password,
+      email_confirm: true,
+      user_metadata: { display_name: display_name.trim() },
+    });
+    if (createErr) return { ok: false, error: createErr.message };
+  }
+
+  // Where to send them: their first pending invitation's slug (the trigger
+  // has already accepted it by now, but client_slug was queried above).
+  const target = anyInv.client_slug ? `/demo/${anyInv.client_slug}` : '/family-tree';
+
+  return { ok: true, redirect: target, email: trimmed };
 }
 
 interface CompleteAccountParams {
@@ -71,9 +98,10 @@ interface CompleteAccountParams {
   display_name: string;
 }
 
-// Design B: user clicked the Supabase invite email, the trigger already
-// created their profile + client_access. They land on /signup authenticated
-// to set their password and display name.
+// Path B: user clicked the Supabase invite email. /auth/callback caught
+// the implicit-flow tokens and established a session. The trigger has
+// already created their profile + bound client_access. They land here
+// to set a password and display name.
 export async function completeAccount({
   password,
   display_name,
@@ -94,7 +122,6 @@ export async function completeAccount({
     .eq('id', user.id);
   if (profileErr) return { ok: false, error: profileErr.message };
 
-  // Find where to send them: their most-recent demo grant, else /family-tree.
   const { data: access } = await supabase
     .from('client_access')
     .select('client:client_id(slug)')
