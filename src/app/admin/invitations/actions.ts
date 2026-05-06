@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
+import { createServiceRoleClient, MissingServiceRoleKeyError, listAllAuthUsers } from '@/lib/supabase/admin';
 import { requirePermission } from '@/lib/auth/permissions';
 import { logAudit } from '@/lib/auth/audit';
 import { siteOrigin } from '@/lib/site-origin';
@@ -34,8 +34,8 @@ export async function sendInvitation(
   // access via the Manage Access UI, not invited as a new account.
   try {
     const admin = createServiceRoleClient();
-    const { data: list } = await admin.auth.admin.listUsers({ perPage: 200 });
-    const existing = list?.users.find((u) => u.email?.toLowerCase() === trimmed);
+    const users = await listAllAuthUsers(admin);
+    const existing = users.find((u) => u.email?.toLowerCase() === trimmed);
     if (existing) {
       return {
         ok: false,
@@ -167,8 +167,8 @@ export async function revokeInvitation(id: string): Promise<{ ok: true } | { ok:
     if ((otherPending ?? 0) === 0) {
       try {
         const admin = createServiceRoleClient();
-        const { data: list } = await admin.auth.admin.listUsers({ perPage: 200 });
-        const target = list?.users.find((u) => u.email?.toLowerCase() === inv.email.toLowerCase());
+        const users = await listAllAuthUsers(admin);
+        const target = users.find((u) => u.email?.toLowerCase() === inv.email.toLowerCase());
         if (target) {
           const { error: deleteErr } = await admin.auth.admin.deleteUser(target.id);
           if (deleteErr) return { ok: false, error: `Could not delete pending user: ${deleteErr.message}` };

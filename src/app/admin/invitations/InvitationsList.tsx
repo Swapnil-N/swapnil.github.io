@@ -20,6 +20,7 @@ interface DemoOption {
 interface Props {
   invitations: Invitation[];
   availableDemos: DemoOption[];
+  businessNameBySlug: Record<string, string>;
 }
 
 type InviteRole = 'family_member' | 'client';
@@ -31,7 +32,7 @@ interface InviteResult {
   emailError?: string;
 }
 
-export default function InvitationsList({ invitations, availableDemos }: Props) {
+export default function InvitationsList({ invitations, availableDemos, businessNameBySlug }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<InviteResult | null>(null);
@@ -142,7 +143,8 @@ export default function InvitationsList({ invitations, availableDemos }: Props) 
                 <TD>
                   {inv.client_slug ? (
                     <span className="text-sm text-muted">
-                      Client <span className="font-mono text-xs">({inv.client_slug})</span>
+                      <span className="text-foreground">{businessNameBySlug[inv.client_slug] ?? 'Demo'}</span>{' '}
+                      <span className="font-mono text-xs">/demo/{inv.client_slug}</span>
                     </span>
                   ) : (
                     <span className="text-sm text-muted">Family member</span>

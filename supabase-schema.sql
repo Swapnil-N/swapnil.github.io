@@ -163,11 +163,6 @@ $$ language sql security definer stable set search_path = public, pg_catalog;
 -- Safe because the function filters on auth.uid() and only returns the
 -- caller's own permissions.
 
--- Back-compat wrapper: an admin has both manage_users and manage_roles.
-create or replace function public.is_admin() returns boolean as $$
-  select public.has_permission('manage_users') and public.has_permission('manage_roles');
-$$ language sql security definer stable set search_path = public, pg_catalog;
-
 -- ============================================================================
 -- Triggers
 -- ============================================================================
@@ -393,8 +388,19 @@ drop policy if exists "relationships_delete_admin" on public.relationships;
 create policy "relationships_delete_admin" on public.relationships for delete using (public.has_permission('edit_family_tree'));
 
 -- roles
+-- A user can read THEIR OWN role row (so AuthProvider's profile-with-role
+-- join works for clients) — and admins (manage_roles or manage_users) can
+-- read all rows. Other users can't enumerate role names + permission flags.
 drop policy if exists "roles_select_authed" on public.roles;
-create policy "roles_select_authed" on public.roles for select using ((select auth.uid()) is not null);
+drop policy if exists "roles_select_self_or_admin" on public.roles;
+create policy "roles_select_self_or_admin" on public.roles for select using (
+  exists (
+    select 1 from public.profiles p
+     where p.id = (select auth.uid()) and p.role_id = roles.id
+  )
+  or public.has_permission('manage_roles')
+  or public.has_permission('manage_users')
+);
 drop policy if exists "roles_insert_admin" on public.roles;
 create policy "roles_insert_admin" on public.roles for insert with check (public.has_permission('manage_roles'));
 drop policy if exists "roles_update_admin" on public.roles;

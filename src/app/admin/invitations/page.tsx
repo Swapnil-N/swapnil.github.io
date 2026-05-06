@@ -13,17 +13,25 @@ export default async function AdminInvitationsPage() {
   // All non-archived demos are valid invite targets in the many-to-many model.
   // Duplicate (email, slug) pending invites are blocked at insert time by the
   // partial unique index — sendInvitation surfaces a clean error.
-  const [{ data: invitationsData }, { data: demosRaw }] = await Promise.all([
+  const [{ data: invitationsData }, { data: allDemosRaw }] = await Promise.all([
     supabase.from('invitations').select('*').order('created_at', { ascending: false }),
     supabase
       .from('clients')
-      .select('slug, business_name')
-      .neq('status', 'archived')
+      .select('slug, business_name, status')
       .order('business_name'),
   ]);
 
   const invitations = (invitationsData ?? []) as Invitation[];
-  const availableDemos = (demosRaw ?? []) as Pick<Client, 'slug' | 'business_name'>[];
+  type DemoLite = Pick<Client, 'slug' | 'business_name' | 'status'>;
+  const allDemos = (allDemosRaw ?? []) as DemoLite[];
+  // Dropdown only offers non-archived demos; the lookup map covers all so
+  // historical invitations to since-archived demos still render their name.
+  const availableDemos = allDemos
+    .filter((d) => d.status !== 'archived')
+    .map(({ slug, business_name }) => ({ slug, business_name }));
+  const businessNameBySlug: Record<string, string> = Object.fromEntries(
+    allDemos.map((d) => [d.slug, d.business_name]),
+  );
 
   return (
     <div>
@@ -33,7 +41,11 @@ export default async function AdminInvitationsPage() {
           Send sign-up invites for family members or client demo access. Revoke pending invites anytime.
         </p>
       </div>
-      <InvitationsList invitations={invitations} availableDemos={availableDemos} />
+      <InvitationsList
+        invitations={invitations}
+        availableDemos={availableDemos}
+        businessNameBySlug={businessNameBySlug}
+      />
     </div>
   );
 }

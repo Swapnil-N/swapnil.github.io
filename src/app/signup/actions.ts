@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
+import { createServiceRoleClient, MissingServiceRoleKeyError, listAllAuthUsers } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/auth/audit';
 import { postSignupRedirectFor } from '@/lib/demo/post-signup-redirect';
 
@@ -64,8 +64,8 @@ export async function selfSignup(
 
   // Look up any pre-existing auth row for this email. inviteUserByEmail
   // creates one with no password and email_confirmed_at=NULL.
-  const { data: list } = await admin.auth.admin.listUsers({ perPage: 200 });
-  const existing = list?.users.find((u) => u.email?.toLowerCase() === trimmed);
+  const users = await listAllAuthUsers(admin);
+  const existing = users.find((u) => u.email?.toLowerCase() === trimmed);
 
   if (existing) {
     // SECURITY: only promote half-formed rows (no email confirm, never
