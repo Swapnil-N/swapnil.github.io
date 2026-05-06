@@ -5,16 +5,11 @@ import { useRouter } from 'next/navigation';
 import Button from '@/components/admin/ui/Button';
 import Input from '@/components/admin/ui/Input';
 import Alert from '@/components/admin/ui/Alert';
-import { createClient } from '@/lib/supabase/client';
-import { acceptInvite } from './actions';
+import { completeAccount } from './actions';
 
-interface Props {
-  token: string;
-  email: string;
-}
-
-export default function AcceptInviteForm({ token, email }: Props) {
+export default function CompleteAccountForm() {
   const router = useRouter();
+  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [pending, setPending] = useState(false);
@@ -25,22 +20,13 @@ export default function AcceptInviteForm({ token, email }: Props) {
     setError(null);
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     if (password !== confirm) { setError('Passwords do not match.'); return; }
+    if (!displayName.trim()) { setError('Display name is required.'); return; }
 
     setPending(true);
     try {
-      const result = await acceptInvite({ token, password });
-      if (!result.ok) { setError(result.error); return; }
-
-      // The server action created the user with email_confirm: true. Sign in
-      // from the browser so the session cookie lands on this client too.
-      const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) {
-        setError(`Account created but sign-in failed: ${signInError.message}. Try signing in manually.`);
-        return;
-      }
-
-      router.replace(result.redirect);
+      const res = await completeAccount({ password, display_name: displayName.trim() });
+      if (!res.ok) { setError(res.error); return; }
+      router.replace(res.redirect);
       router.refresh();
     } finally {
       setPending(false);
@@ -51,11 +37,13 @@ export default function AcceptInviteForm({ token, email }: Props) {
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <Alert tone="error">{error}</Alert>}
       <Input
-        label="Email"
-        type="email"
-        value={email}
-        readOnly
-        disabled
+        label="Display name"
+        type="text"
+        autoComplete="name"
+        value={displayName}
+        onChange={(e) => setDisplayName(e.target.value)}
+        placeholder="Your name"
+        required
       />
       <Input
         label="Password"
@@ -64,6 +52,7 @@ export default function AcceptInviteForm({ token, email }: Props) {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="At least 8 characters"
+        required
       />
       <Input
         label="Confirm password"
@@ -71,9 +60,10 @@ export default function AcceptInviteForm({ token, email }: Props) {
         autoComplete="new-password"
         value={confirm}
         onChange={(e) => setConfirm(e.target.value)}
+        required
       />
       <Button type="submit" disabled={pending}>
-        {pending ? 'Creating account…' : 'Create account'}
+        {pending ? 'Saving…' : 'Save and continue'}
       </Button>
     </form>
   );

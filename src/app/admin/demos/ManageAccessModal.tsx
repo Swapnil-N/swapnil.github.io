@@ -51,7 +51,7 @@ export default function ManageAccessModal({
       const res = await grantAccess({ client_id: client.id, user_id: selectedUserId });
       if (!res.ok) { setError(res.error); return; }
       setSelectedUserId('');
-      setSuccess(res.loggedOnly ? 'Access granted (email logged to console — RESEND_API_KEY not set)' : 'Access granted and email sent.');
+      setSuccess('Access granted. Let the user know via your own channel — no automated email is sent.');
     });
   }
 

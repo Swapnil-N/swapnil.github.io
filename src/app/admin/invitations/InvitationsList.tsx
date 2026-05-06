@@ -24,18 +24,26 @@ interface Props {
 
 type InviteRole = 'family_member' | 'client';
 
+interface InviteResult {
+  email: string;
+  signupUrl: string;
+  emailSent: boolean;
+  emailError?: string;
+}
+
 export default function InvitationsList({ invitations, unclaimedDemos }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [lastResult, setLastResult] = useState<InviteResult | null>(null);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<InviteRole>('family_member');
   const [clientSlug, setClientSlug] = useState('');
+  const [copied, setCopied] = useState(false);
 
   function send() {
     setError(null);
-    setSuccess(null);
+    setLastResult(null);
     startTransition(async () => {
       const res = await sendInvitation({
         email,
@@ -45,12 +53,27 @@ export default function InvitationsList({ invitations, unclaimedDemos }: Props) 
       if (!res.ok) {
         setError(res.error);
       } else {
-        const label = role === 'client' ? `client invite for /demo/${clientSlug}` : 'family member invite';
-        setSuccess(`Invitation sent to ${email} (${label})`);
+        setLastResult({
+          email,
+          signupUrl: res.signupUrl,
+          emailSent: res.emailSent,
+          emailError: res.emailError,
+        });
         resetForm();
         setOpen(false);
       }
     });
+  }
+
+  async function copyUrl() {
+    if (!lastResult) return;
+    try {
+      await navigator.clipboard.writeText(lastResult.signupUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard API blocked (insecure context, permissions); user can select manually.
+    }
   }
 
   function resetForm() {
@@ -73,7 +96,28 @@ export default function InvitationsList({ invitations, unclaimedDemos }: Props) 
   return (
     <>
       {error && !open && <div className="mb-4"><Alert tone="error">{error}</Alert></div>}
-      {success && <div className="mb-4"><Alert tone="success">{success}</Alert></div>}
+      {lastResult && (
+        <div className="mb-4">
+          <Alert tone="success">
+            <div className="space-y-2">
+              <div>
+                Invitation created for <strong>{lastResult.email}</strong>.
+                {lastResult.emailSent
+                  ? ' Confirmation email sent.'
+                  : ` Email not sent (${lastResult.emailError ?? 'unknown'}). Share the link below manually.`}
+              </div>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground break-all">
+                  {lastResult.signupUrl}
+                </code>
+                <Button size="sm" variant="ghost" onClick={copyUrl}>
+                  {copied ? 'Copied' : 'Copy'}
+                </Button>
+              </div>
+            </div>
+          </Alert>
+        </div>
+      )}
       <div className="mb-4 flex justify-end">
         <Button onClick={() => setOpen(true)}>+ Invite</Button>
       </div>

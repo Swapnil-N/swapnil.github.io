@@ -1,21 +1,11 @@
 'use server';
 
-import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requirePermission } from '@/lib/auth/permissions';
 import { logAudit } from '@/lib/auth/audit';
-import { sendEmail } from '@/lib/email/send';
-import { accessGrantedEmail } from '@/lib/email/templates';
 
-type Result = { ok: true; loggedOnly?: boolean } | { ok: false; error: string };
-
-async function siteOrigin(): Promise<string> {
-  const h = await headers();
-  const proto = h.get('x-forwarded-proto') ?? 'https';
-  const host = h.get('host') ?? '';
-  return `${proto}://${host}`;
-}
+type Result = { ok: true } | { ok: false; error: string };
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,}[a-z0-9]$/;
 
@@ -96,8 +86,9 @@ export async function setPaymentLink(id: string, url: string): Promise<Result> {
   return { ok: true };
 }
 
-// Grant an existing user access to a demo. Sends an "access granted" email.
-// For NEW users (no account yet), use /admin/invitations instead.
+// Grant an existing user access to a demo. No automated email — admin
+// notifies the user via their own channel. (For NEW users without an
+// account, use /admin/invitations instead.)
 export async function grantAccess({
   client_id,
   user_id,
@@ -107,20 +98,6 @@ export async function grantAccess({
 }): Promise<Result> {
   const { user: actor } = await requirePermission('manage_users');
   const supabase = await createClient();
-
-  const { data: client } = await supabase
-    .from('clients')
-    .select('slug, business_name')
-    .eq('id', client_id)
-    .maybeSingle();
-  if (!client) return { ok: false, error: 'Demo not found' };
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('email, role_id')
-    .eq('id', user_id)
-    .maybeSingle();
-  if (!profile) return { ok: false, error: 'User not found' };
 
   const { error: insertError } = await supabase
     .from('client_access')
@@ -132,29 +109,14 @@ export async function grantAccess({
     return { ok: false, error: insertError.message };
   }
 
-  const origin = await siteOrigin();
-  const demoUrl = `${origin}/demo/${client.slug}`;
-  const { subject, html, text } = accessGrantedEmail({
-    demoUrl,
-    businessName: client.business_name,
-  });
-  const sendResult = await sendEmail({ to: profile.email, subject, html, text });
-  // Don't roll back on email failure — access has been granted; admin can
-  // notify manually if the email failed.
-
   await logAudit({
     action: 'demo.access_granted',
     targetType: 'client',
     targetId: client_id,
-    metadata: {
-      user_id,
-      email: profile.email,
-      email_logged_only: sendResult.loggedOnly ?? false,
-      email_error: sendResult.ok ? null : sendResult.error ?? null,
-    },
+    metadata: { user_id },
   });
   revalidatePath('/admin/demos');
-  return { ok: true, loggedOnly: sendResult.loggedOnly };
+  return { ok: true };
 }
 
 export async function revokeAccess({

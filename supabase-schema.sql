@@ -64,15 +64,8 @@ create table if not exists public.invitations (
   created_at timestamptz default now(),
   -- Demo-hosting columns (added in Phase 4):
   role_id uuid references public.roles(id),
-  client_slug text references public.clients(slug),
-  -- Token-based custom invitation flow (Phase 4 redesign):
-  accept_token text,
-  expires_at timestamptz
+  client_slug text references public.clients(slug)
 );
-
-create unique index if not exists invitations_accept_token_unique
-  on public.invitations (accept_token)
-  where accept_token is not null;
 
 create unique index if not exists invitations_email_pending_family_unique
   on public.invitations (email)
@@ -179,8 +172,56 @@ $$ language sql security definer stable set search_path = public, pg_catalog;
 -- Triggers
 -- ============================================================================
 
--- Invite-only signup gate. Profile creation + access binding live in the
--- /accept-invite server action (see Phase 4); the trigger is defence-in-depth.
+-- _provision_invitee: shared helper called by handle_new_user (auto-confirm
+-- path) and handle_user_confirmed (normal invite-then-click flow). Creates
+-- the profile, binds client_access for demo invites, marks the invitation
+-- accepted. NOTE: depends on tables (clients, client_access) defined later
+-- in this file — the function body is parsed lazily so order is OK.
+create or replace function public._provision_invitee(p_user_id uuid, p_email text, p_display_name text)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+declare
+  inv         public.invitations%rowtype;
+  chosen_role uuid;
+  client_uuid uuid;
+begin
+  select * into inv from public.invitations
+   where email = p_email and status = 'pending' limit 1;
+  if inv.id is null then return; end if;
+
+  if inv.role_id is not null then
+    chosen_role := inv.role_id;
+  else
+    select id into chosen_role from public.roles where name = 'family_member' limit 1;
+  end if;
+  if chosen_role is null then
+    raise exception 'no role available for new user';
+  end if;
+
+  insert into public.profiles (id, email, display_name, role_id)
+  values (p_user_id, p_email, p_display_name, chosen_role)
+  on conflict (id) do nothing;
+
+  if inv.client_slug is not null then
+    select id into client_uuid from public.clients where slug = inv.client_slug limit 1;
+    if client_uuid is not null then
+      insert into public.client_access (client_id, user_id)
+      values (client_uuid, p_user_id)
+      on conflict (client_id, user_id) do nothing;
+    end if;
+  end if;
+
+  update public.invitations set status = 'accepted' where id = inv.id;
+end;
+$$;
+
+revoke execute on function public._provision_invitee(uuid, text, text) from anon, authenticated, public;
+
+-- handle_new_user: enforce invite-only gate; provision immediately if
+-- email_confirmed_at is already set on insert (auto-confirm path).
 create or replace function public.handle_new_user() returns trigger as $$
 begin
   if not exists (
@@ -190,6 +231,11 @@ begin
     raise exception 'Signup is invite-only. Ask an admin to send you an invitation.'
       using errcode = 'P0001';
   end if;
+
+  if new.email_confirmed_at is not null then
+    perform public._provision_invitee(new.id, new.email, new.raw_user_meta_data->>'display_name');
+  end if;
+
   return new;
 end;
 $$ language plpgsql security definer set search_path = public, pg_catalog, auth;
@@ -199,6 +245,24 @@ revoke execute on function public.handle_new_user() from anon, authenticated, pu
 create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- handle_user_confirmed: provision when email_confirmed_at flips NULL → NOT NULL
+-- (the user clicked their confirmation link).
+create or replace function public.handle_user_confirmed() returns trigger as $$
+begin
+  if old.email_confirmed_at is null and new.email_confirmed_at is not null then
+    perform public._provision_invitee(new.id, new.email, new.raw_user_meta_data->>'display_name');
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public, pg_catalog, auth;
+
+revoke execute on function public.handle_user_confirmed() from anon, authenticated, public;
+
+drop trigger if exists on_auth_user_email_confirmed on auth.users;
+create trigger on_auth_user_email_confirmed
+  after update of email_confirmed_at on auth.users
+  for each row execute function public.handle_user_confirmed();
 
 -- Block any user from changing their own role_id or disabled flag through the
 -- self-update path on profiles. An admin demoting themselves to a less-
