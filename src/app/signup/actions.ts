@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/auth/audit';
+import { postSignupRedirectFor } from '@/lib/demo/post-signup-redirect';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -34,12 +35,14 @@ export async function selfSignup(
   const supabase = await createClient();
 
   // Allowlist check (handle_new_user trigger also enforces; this gives a
-  // friendlier error than the raw SQL exception).
+  // friendlier error than the raw SQL exception). Order by most-recent so
+  // the redirect target reflects the URL the admin probably just shared.
   const { data: anyInv } = await supabase
     .from('invitations')
     .select('client_slug')
     .eq('email', trimmed)
     .eq('status', 'pending')
+    .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!anyInv) {
@@ -65,9 +68,19 @@ export async function selfSignup(
   const existing = list?.users.find((u) => u.email?.toLowerCase() === trimmed);
 
   if (existing) {
-    // Promote the half-formed account: set the password and confirm the
-    // email. updating email_confirmed_at to a non-NULL value fires
-    // handle_user_confirmed → _provision_invitee (idempotent).
+    // SECURITY: only promote half-formed rows (no email confirm, never
+    // signed in). For real, fully-set-up users, refuse — otherwise admin
+    // adding the user to a new pending invite would let any actor with the
+    // /signup URL silently reset that user's password.
+    if (existing.email_confirmed_at || existing.last_sign_in_at) {
+      return {
+        ok: false,
+        error: 'An account already exists for this email. Sign in at /login, or use the forgot-password flow if you need to reset.',
+      };
+    }
+    // Half-formed row from inviteUserByEmail. Set password + confirm email.
+    // The email_confirmed_at NULL → NOT NULL transition fires
+    // handle_user_confirmed → _provision_invitee.
     const { error: updateErr } = await admin.auth.admin.updateUserById(existing.id, {
       password,
       email_confirm: true,
@@ -122,20 +135,7 @@ export async function completeAccount({
     .eq('id', user.id);
   if (profileErr) return { ok: false, error: profileErr.message };
 
-  const { data: access } = await supabase
-    .from('client_access')
-    .select('client:client_id(slug)')
-    .eq('user_id', user.id)
-    .order('granted_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  let redirect = '/family-tree';
-  if (access?.client) {
-    const c = access.client as { slug: string } | { slug: string }[];
-    const slug = Array.isArray(c) ? c[0]?.slug : c.slug;
-    if (slug) redirect = `/demo/${slug}`;
-  }
+  const redirect = await postSignupRedirectFor(supabase, user.id);
 
   await logAudit({
     action: 'profile.signup_completed',

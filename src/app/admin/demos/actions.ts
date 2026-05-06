@@ -70,9 +70,18 @@ export async function markPaid(id: string): Promise<Result> {
 export async function setPaymentLink(id: string, url: string): Promise<Result> {
   await requirePermission('manage_users');
   const trimUrl = url.trim();
-  // Require https — http would allow insecure or phishing URLs in window.open()
-  if (trimUrl && !trimUrl.startsWith('https://')) {
-    return { ok: false, error: 'URL must start with https://' };
+  // Parse to a real URL: rejects bare "https://", malformed URLs, non-https
+  // schemes, and javascript:/data: URLs that would otherwise pass a startsWith
+  // check. Empty string clears the link.
+  if (trimUrl) {
+    try {
+      const parsed = new URL(trimUrl);
+      if (parsed.protocol !== 'https:' || !parsed.hostname) {
+        return { ok: false, error: 'URL must be a valid https:// link' };
+      }
+    } catch {
+      return { ok: false, error: 'URL is not a valid URL' };
+    }
   }
 
   const supabase = await createClient();

@@ -35,6 +35,4 @@ export interface Invitation {
   created_at: string;
   role_id: string | null;
   client_slug: string | null;
-  accept_token: string | null;
-  expires_at: string | null;
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getCurrentUserWithRole } from '@/lib/auth/permissions';
 import { createClient } from '@/lib/supabase/server';
+import { postSignupRedirectFor } from '@/lib/demo/post-signup-redirect';
 import PageTransition from '@/components/layout/PageTransition';
 import SignupForm from './SignupForm';
 import CompleteAccountForm from './CompleteAccountForm';
@@ -21,24 +22,14 @@ export default async function SignupPage({ searchParams }: PageProps) {
   const auth = await getCurrentUserWithRole();
   const params = await searchParams;
 
-  // Authenticated path (Design B): user clicked Supabase invite email,
-  // /auth/callback exchanged the code, the trigger created their profile.
-  // They land here to set a password + display name.
+  // Path B (authenticated, came from Supabase invite email click):
+  // /auth/callback established the session and the confirm-trigger created
+  // the profile. They land here to set password + display name.
   if (auth) {
     if (auth.profile.display_name) {
       // Already fully set up — send them somewhere useful.
       const supabase = await createClient();
-      const { data: access } = await supabase
-        .from('client_access')
-        .select('client:client_id(slug)')
-        .eq('user_id', auth.user.id)
-        .order('granted_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const slug = (access?.client as { slug: string } | { slug: string }[] | null);
-      const target = Array.isArray(slug)
-        ? (slug[0]?.slug ? `/demo/${slug[0].slug}` : '/family-tree')
-        : (slug?.slug ? `/demo/${slug.slug}` : '/family-tree');
+      const target = await postSignupRedirectFor(supabase, auth.user.id);
       redirect(target);
     }
 
@@ -55,19 +46,26 @@ export default async function SignupPage({ searchParams }: PageProps) {
     );
   }
 
-  // Unauthenticated path (Design C): admin shared the /signup URL. User
-  // types email + password + display name. We validate against the
-  // invitations allowlist server-side, then call supabase.auth.signUp,
-  // which sends Supabase's confirmation email.
-  return (
-    <PageTransition>
-      <div className="max-w-md mx-auto px-6 py-12">
-        <h1 className="font-heading text-3xl font-bold text-foreground mb-3">Create your account</h1>
-        <p className="text-muted mb-8">
-          Sign-up is invite-only. Use the email an admin invited.
-        </p>
-        <SignupForm initialEmail={params.email ?? ''} />
-      </div>
-    </PageTransition>
-  );
+  // Path C (admin shared `/signup?email=...` URL): show the form with email
+  // pre-filled and locked. The server action validates the allowlist before
+  // creating the account — the locked field is just UX, not security.
+  if (params.email) {
+    return (
+      <PageTransition>
+        <div className="max-w-md mx-auto px-6 py-12">
+          <h1 className="font-heading text-3xl font-bold text-foreground mb-3">Create your account</h1>
+          <p className="text-muted mb-8">
+            Set a password and display name to finish your invitation.
+          </p>
+          <SignupForm initialEmail={params.email} />
+        </div>
+      </PageTransition>
+    );
+  }
+
+  // Bare `/signup` with no auth and no email param: this is never the
+  // intended entry point. Redirect to /login with a clear explanation
+  // rather than show a form that lets random visitors guess at allowlisted
+  // emails.
+  redirect('/login?error=signup_invite_only');
 }

@@ -114,6 +114,8 @@ export default function LoginPage() {
                   <Link href="/forgot-password" className="underline">Request a new reset link.</Link>
                 </>
               ))
+              || (urlError === 'signup_invite_only' && 'Sign-up is invite-only. If you have an invitation, use the link from your admin’s email or shared signup URL.')
+              || (urlError === 'no_demo_access' && 'You don’t have access to that demo. Contact your admin if you think this is a mistake.')
               || urlError}
           </div>
         )}

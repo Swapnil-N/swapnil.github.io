@@ -1,20 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
 import { requirePermission } from '@/lib/auth/permissions';
 import { logAudit } from '@/lib/auth/audit';
+import { siteOrigin } from '@/lib/site-origin';
 
 type Result = { ok: true } | { ok: false; error: string };
-
-async function siteOrigin(): Promise<string> {
-  const h = await headers();
-  const proto = h.get('x-forwarded-proto') ?? 'https';
-  const host = h.get('host') ?? '';
-  return `${proto}://${host}`;
-}
 
 export async function updateUserRole(userId: string, roleId: string): Promise<Result> {
   const { user } = await requirePermission('manage_users');
@@ -81,7 +74,7 @@ export async function deleteUser(userId: string): Promise<Result> {
   }
 
   // Capture email up front so we can clean up any matching invitation rows.
-  // (auth user deletion cascades to profile and clients.owner_user_id, but
+  // (auth user deletion cascades to profile and client_access rows, but
   // doesn't touch invitations since they reference by email.)
   const supabase = await createClient();
   const { data: profile } = await supabase

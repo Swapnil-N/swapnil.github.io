@@ -50,10 +50,13 @@ export async function gateDemo(slug: string): Promise<DemoGateResult> {
       .maybeSingle();
     hasAccess = !!access;
   }
-  if (!hasAccess) redirect('/');
+  // Send unauthorized users to /demos so they have a way to find the demos
+  // they DO have access to (and see a friendly explanation), rather than
+  // dumping them on the home page with no context.
+  if (!hasAccess) redirect('/demos?error=no_access');
 
   // Archived demos are hidden from clients (admins can still preview).
-  if ((rawStatus as Client['status']) === 'archived' && !isAdmin) redirect('/');
+  if ((rawStatus as Client['status']) === 'archived' && !isAdmin) redirect('/demos?error=no_access');
 
   if (!isAdmin) {
     // SECURITY DEFINER RPC — only updates last_seen_at for the caller if

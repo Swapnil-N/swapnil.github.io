@@ -1,24 +1,17 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient, MissingServiceRoleKeyError } from '@/lib/supabase/admin';
 import { requirePermission } from '@/lib/auth/permissions';
 import { logAudit } from '@/lib/auth/audit';
+import { siteOrigin } from '@/lib/site-origin';
 
 type Result =
   | { ok: true; signupUrl: string; emailSent: boolean; emailError?: string }
   | { ok: false; error: string };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-async function siteOrigin(): Promise<string> {
-  const h = await headers();
-  const proto = h.get('x-forwarded-proto') ?? 'https';
-  const host = h.get('host') ?? '';
-  return `${proto}://${host}`;
-}
 
 interface InviteParams {
   email: string;
@@ -156,23 +149,36 @@ export async function revokeInvitation(id: string): Promise<{ ok: true } | { ok:
   if (lookupError) return { ok: false, error: lookupError.message };
   if (!inv) return { ok: false, error: 'Invitation not found.' };
 
-  // For pending invitations (user hasn't confirmed yet), inviteUserByEmail
-  // may have already created a half-formed auth.users row. Cascade the delete
-  // so re-inviting the same email later works cleanly. (Cascade FKs unbind
-  // client_access and delete profile, if any.)
+  // For pending invitations, inviteUserByEmail may have already created a
+  // half-formed auth.users row. Cascade the delete so re-inviting the same
+  // email later works cleanly — BUT only if no OTHER pending invitations
+  // exist for this email (e.g. the user was invited to two demos and we're
+  // only revoking one). Cascading the auth-user delete in that case would
+  // wipe state that the other pending invite still references.
+  let cascadedAuthDelete = false;
   if (inv.status === 'pending') {
-    try {
-      const admin = createServiceRoleClient();
-      const { data: list } = await admin.auth.admin.listUsers({ perPage: 200 });
-      const target = list?.users.find((u) => u.email?.toLowerCase() === inv.email.toLowerCase());
-      if (target) {
-        const { error: deleteErr } = await admin.auth.admin.deleteUser(target.id);
-        if (deleteErr) return { ok: false, error: `Could not delete pending user: ${deleteErr.message}` };
+    const { count: otherPending } = await supabase
+      .from('invitations')
+      .select('id', { count: 'exact', head: true })
+      .eq('email', inv.email)
+      .eq('status', 'pending')
+      .neq('id', id);
+
+    if ((otherPending ?? 0) === 0) {
+      try {
+        const admin = createServiceRoleClient();
+        const { data: list } = await admin.auth.admin.listUsers({ perPage: 200 });
+        const target = list?.users.find((u) => u.email?.toLowerCase() === inv.email.toLowerCase());
+        if (target) {
+          const { error: deleteErr } = await admin.auth.admin.deleteUser(target.id);
+          if (deleteErr) return { ok: false, error: `Could not delete pending user: ${deleteErr.message}` };
+          cascadedAuthDelete = true;
+        }
+      } catch (err) {
+        if (!(err instanceof MissingServiceRoleKeyError)) throw err;
+        // Without service-role we can't delete the auth user; still drop the
+        // invitation row so it disappears from the UI.
       }
-    } catch (err) {
-      if (!(err instanceof MissingServiceRoleKeyError)) throw err;
-      // Without service-role we can't delete the auth user; still drop the
-      // invitation row so it disappears from the UI.
     }
   }
 
@@ -183,7 +189,7 @@ export async function revokeInvitation(id: string): Promise<{ ok: true } | { ok:
     action: 'invitation.revoked',
     targetType: 'invitation',
     targetId: id,
-    metadata: { email: inv.email, status_at_revoke: inv.status },
+    metadata: { email: inv.email, status_at_revoke: inv.status, cascaded_auth_delete: cascadedAuthDelete },
   });
   revalidatePath('/admin/invitations');
   revalidatePath('/admin');

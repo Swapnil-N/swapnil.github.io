@@ -22,10 +22,12 @@ export async function recordClientAction({
 
   const supabase = await createClient();
 
-  // Verify the caller has access to this demo via client_access. The RLS
-  // policy on client_actions also blocks unauthorized inserts at the DB level,
-  // but an explicit check gives a clear error and prevents logAudit from
-  // being called spuriously on failed attempts.
+  // Only true clients (with a client_access row for this demo) can record
+  // actions. Admins previewing a demo never see the buttons in the strip,
+  // and even if they tried, this check would refuse — admins bypass demo
+  // VISIBILITY via has_permission, but they don't have a client_access row
+  // and so don't pass the client_actions_insert RLS policy either. This
+  // explicit check just gives a friendlier error and skips the audit log.
   const { data: access } = await supabase
     .from('client_access')
     .select('client_id')

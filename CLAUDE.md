@@ -95,18 +95,21 @@ supabase-schema.sql — Database schema (run in Supabase SQL editor for fresh pr
 ## Phase 4 (Built): Client demo hosting
 
 - **Goal**: Host prospect demo sites at `/demo/{slug}` behind per-client auth, with a dashboard strip for Approve / Request Changes / Pay actions.
-- **Auth model**: A third system role `client` (all permissions false) is assigned when a client signs up via invitation. Clients can't access `/family-tree` (no `view_family_tree`) or `/admin`. Ownership is row-level (`clients.owner_user_id = auth.uid()`).
-- **Demo gate**: `src/lib/demo/gate.ts:gateDemo(slug)` — server-only helper called from each demo's `layout.tsx`. Checks auth, `disabled`, ownership (or admin bypass via `can_manage_users`), updates `last_seen_at`. Returns `{ client, isAdmin }`.
+- **Auth model**: A third system role `client` (all permissions false) is assigned to invited users by default. Clients can't access `/family-tree` (no `view_family_tree`) or `/admin`. Demo visibility is many-to-many via `client_access(client_id, user_id)`; admins bypass via `has_permission('manage_users')`.
+- **Demo gate**: `src/lib/demo/gate.ts:gateDemo(slug)` — server-only helper called from each demo's `layout.tsx`. Checks auth, `disabled`, `client_access` membership (or admin bypass), updates `last_seen_at` via the `touch_demo_last_seen` SECURITY DEFINER RPC. Returns `{ client, isAdmin }`.
 - **Dashboard strip**: `src/components/client/ClientDashboardStrip.tsx` — `sticky top-16` client component (sits below the fixed site nav). Shows business name, status badges, and action buttons (Approve, Request Changes, Pay). `RequestChangesModal.tsx` for the feedback form.
 - **Client actions**: `src/app/demo/actions.ts:recordClientAction(...)` — server action, inserts into `client_actions` table and logs to `audit_log`.
-- **Admin demos dashboard**: `/admin/demos` — list, create, archive, mark paid, set Stripe payment link. Server actions in `src/app/admin/demos/actions.ts`. "Demos" added to `AdminSidebar`.
-- **Invite flow extended**: `sendInvitation` now accepts `{ email, role?, client_slug? }`. When `role='client'`, the DB trigger assigns the `client` role and binds `clients.owner_user_id` on signup.
+- **Admin demos dashboard**: `/admin/demos` — list, create, archive, mark paid, set Stripe payment link, plus Manage Access modal for granting existing users access to a demo (no email; admin notifies via own channel). Server actions in `src/app/admin/demos/actions.ts`. "Demos" added to `AdminSidebar`.
+- **Invitation + signup flow**: `sendInvitation({ email, role?, client_slug? })` inserts an invitation row and best-effort calls `auth.admin.inviteUserByEmail` (Supabase's built-in email; rate-limited 3/hour on free tier). The admin always gets a copyable `/signup?email=...` URL to share manually if email isn't sent. Two signup paths converge on `/signup`:
+  - **Path B** (clicked Supabase email): `/auth/callback` (client page; handles both PKCE `?code=` and implicit `#access_token` flows) sets the session → `/signup` shows `CompleteAccountForm` → `completeAccount` server action sets password + display name.
+  - **Path C** (admin shared URL): `/signup?email=...` shows `SignupForm` with email locked → `selfSignup` calls `admin.createUser({ email_confirm: true })` for new users or `updateUserById` for half-formed Supabase rows; refuses to overwrite real, fully-set-up accounts. Client signs in immediately. No separate email-verification step.
+- **Triggers**: `handle_new_user` enforces invite-only gate + auto-confirm provisioning. `handle_user_confirmed` provisions on `email_confirmed_at` NULL→NOT NULL. Both call `_provision_invitee()` which loops every pending invitation for the email so a single signup binds access to multiple demos.
 - **Scaffold script**: `npm run new-demo -- --slug=acme --name="Acme Bakery"` creates `src/app/demo/{slug}/{layout.tsx, page.tsx, CLAUDE.md}` and `public/demo/{slug}/`. The per-demo `CLAUDE.md` is the source of truth for vibe-coding agents working in that folder (Claude Code auto-loads it) and documents the available theming options. Does NOT touch the DB — create the row via `/admin/demos` first.
 - **Middleware**: `/demo/:path*` added to the matcher and `protectedPaths`. Auth + disabled check apply as for all protected routes.
 - **Isolation rules**: Each demo lives entirely in `src/app/demo/{slug}/` + `public/demo/{slug}/`. May import `src/components/client/*` and `src/components/admin/ui/*`. Must NOT import from another demo or add to shared component folders for demo-specific needs.
 - **Graduation workflow (manual)**: Copy `src/app/demo/{slug}/` and `public/demo/{slug}/` to a new repo, strip the `gateDemo()` layout wrapper, create a new Vercel project, attach the custom domain, then `markPaid(id)`.
-- **New types**: `src/types/client.ts` — `Client`, `ClientAction`. `Invitation` in `src/types/family.ts` gained `role_id` and `client_slug` fields.
-- **New DB tables**: `clients` (slug, business_name, owner_user_id, status, payment_link_url, last_seen_at) and `client_actions` (client_id, action, message). Both have RLS enabled.
+- **New types**: `src/types/client.ts` — `Client`, `ClientAction`, `ClientAccess`. `Invitation` in `src/types/family.ts` gained `role_id` and `client_slug` fields.
+- **New DB tables**: `clients` (slug, business_name, status, payment_link_url, last_seen_at), `client_access` (client_id, user_id, granted_by, granted_at), `client_actions` (client_id, action, message). All have RLS enabled.
 
 ## TODOs
 
