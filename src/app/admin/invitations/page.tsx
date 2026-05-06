@@ -10,31 +10,20 @@ export default async function AdminInvitationsPage() {
   await requirePermission('invite');
   const supabase = await createClient();
 
-  const [{ data: invitationsData }, { data: unclaimedRaw }, { data: pendingClientInvites }] =
-    await Promise.all([
-      supabase.from('invitations').select('*').order('created_at', { ascending: false }),
-      supabase
-        .from('clients')
-        .select('slug, business_name')
-        .is('owner_user_id', null)
-        .eq('status', 'demo')
-        .order('business_name'),
-      // Exclude demos that already have a pending invite — prevents double-inviting
-      supabase
-        .from('invitations')
-        .select('client_slug')
-        .eq('status', 'pending')
-        .not('client_slug', 'is', null),
-    ]);
+  // All non-archived demos are valid invite targets in the many-to-many model.
+  // Duplicate (email, slug) pending invites are blocked at insert time by the
+  // partial unique index — sendInvitation surfaces a clean error.
+  const [{ data: invitationsData }, { data: demosRaw }] = await Promise.all([
+    supabase.from('invitations').select('*').order('created_at', { ascending: false }),
+    supabase
+      .from('clients')
+      .select('slug, business_name')
+      .neq('status', 'archived')
+      .order('business_name'),
+  ]);
 
   const invitations = (invitationsData ?? []) as Invitation[];
-
-  const pendingSlugs = new Set(
-    (pendingClientInvites ?? []).map((i) => i.client_slug as string),
-  );
-  const unclaimedDemos = ((unclaimedRaw ?? []) as Pick<Client, 'slug' | 'business_name'>[]).filter(
-    (d) => !pendingSlugs.has(d.slug),
-  );
+  const availableDemos = (demosRaw ?? []) as Pick<Client, 'slug' | 'business_name'>[];
 
   return (
     <div>
@@ -44,7 +33,7 @@ export default async function AdminInvitationsPage() {
           Send sign-up invites for family members or client demo access. Revoke pending invites anytime.
         </p>
       </div>
-      <InvitationsList invitations={invitations} unclaimedDemos={unclaimedDemos} />
+      <InvitationsList invitations={invitations} availableDemos={availableDemos} />
     </div>
   );
 }

@@ -12,14 +12,14 @@ import { formatTimestamp } from '@/lib/format-date';
 import { sendInvitation, revokeInvitation } from './actions';
 import type { Invitation } from '@/types/family';
 
-interface UnclaimedDemo {
+interface DemoOption {
   slug: string;
   business_name: string;
 }
 
 interface Props {
   invitations: Invitation[];
-  unclaimedDemos: UnclaimedDemo[];
+  availableDemos: DemoOption[];
 }
 
 type InviteRole = 'family_member' | 'client';
@@ -31,7 +31,7 @@ interface InviteResult {
   emailError?: string;
 }
 
-export default function InvitationsList({ invitations, unclaimedDemos }: Props) {
+export default function InvitationsList({ invitations, availableDemos }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<InviteResult | null>(null);
@@ -207,16 +207,16 @@ export default function InvitationsList({ invitations, unclaimedDemos }: Props) 
               onChange={(e) => setClientSlug(e.target.value)}
             >
               <option value="">— Select a demo —</option>
-              {unclaimedDemos.map((d) => (
+              {availableDemos.map((d) => (
                 <option key={d.slug} value={d.slug}>
                   {d.business_name} (/demo/{d.slug})
                 </option>
               ))}
             </Select>
           )}
-          {role === 'client' && unclaimedDemos.length === 0 && (
+          {role === 'client' && availableDemos.length === 0 && (
             <p className="text-xs text-muted">
-              No unclaimed demos available. Create one at{' '}
+              No demos exist yet. Create one at{' '}
               <a href="/admin/demos" className="text-primary underline">Admin → Demos</a> first.
             </p>
           )}
